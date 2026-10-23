@@ -4,8 +4,8 @@ import { PRESETS } from '../../src/services/audio/presets';
 import type { AudioPresetId } from '../../src/services/audio/types';
 
 describe('getPresetForScreen', () => {
-  it('main_menu → menu_theme', () => {
-    expect(getPresetForScreen('main_menu', '')).toBe('menu_theme');
+  it('menu → menu_theme', () => {
+    expect(getPresetForScreen('menu', '')).toBe('menu_theme');
   });
   it('scene ch1_01_dining → train_ambient', () => {
     expect(getPresetForScreen('scene', 'ch1_01_dining')).toBe('train_ambient');
@@ -19,11 +19,14 @@ describe('getPresetForScreen', () => {
   it('scene unknown → default train_ambient', () => {
     expect(getPresetForScreen('scene', 'unknown_scene')).toBe('train_ambient');
   });
-  it('death → death_sting', () => {
-    expect(getPresetForScreen('death', '')).toBe('death_sting');
+  it('finale → finale_theme', () => {
+    expect(getPresetForScreen('finale', '')).toBe('finale_theme');
   });
   it('accusation → accusation_theme', () => {
     expect(getPresetForScreen('accusation', '')).toBe('accusation_theme');
+  });
+  it('chapterEnd → summary_theme', () => {
+    expect(getPresetForScreen('chapterEnd', '')).toBe('summary_theme');
   });
   it('unknown screen → silence', () => {
     expect(getPresetForScreen('unknown', '')).toBe('silence');

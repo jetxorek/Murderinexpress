@@ -19,12 +19,13 @@ const SCENE_PRESETS: Record<string, AudioPresetId> = {
 };
 
 const SCREEN_PRESETS: Record<string, AudioPresetId> = {
-  main_menu: 'menu_theme',
-  chapter_summary: 'summary_theme',
+  menu: 'menu_theme',
+  scene: 'train_ambient', // default for scene, overridden by SCENE_PRESETS
+  notebook: 'silence', // не менять ambient
   accusation: 'accusation_theme',
-  accusation_result: 'accusation_theme',
-  death: 'death_sting',
+  result: 'tension',
   finale: 'finale_theme',
+  chapterEnd: 'summary_theme',
 };
 
 const DEFAULT_SCENE_PRESET: AudioPresetId = 'train_ambient';

@@ -19,8 +19,16 @@ export function useAudioController(): void {
     const handleFirstInteraction = () => {
       if (!audio.isInitialized()) {
         audio.init();
+        initializedRef.current = true;
+
+        // Сразу после инициализации воспроизводим пресет для текущего экрана
+        const currentScreen = useGameStore.getState().screen;
+        const currentSceneId = useGameStore.getState().currentSceneId;
+        if (currentScreen !== 'notebook') {
+          const presetId = getPresetForScreen(currentScreen, currentSceneId);
+          audio.playPreset(presetId);
+        }
       }
-      initializedRef.current = true;
 
       // Удаляем обработчики после первой инициализации
       window.removeEventListener('pointerdown', handleFirstInteraction);
