@@ -1,0 +1,147 @@
+import { Scene } from '../../schemas/scene';
+
+export const ch1_01_dining: Scene = {
+  id: 'ch1_01_dining',
+  chapter: 1,
+  title: 'Вагон-ресторан. Знакомство',
+  type: 'mandatory',
+  background: 'dining_car',
+  characters: ['char_01', 'char_02', 'char_03', 'char_04', 'char_05', 'char_06', 'char_07'],
+  entry: 'n1',
+  slotCost: 1,
+  nodes: {
+    n1: {
+      type: 'narration',
+      text: 'Поезд стоял в снегу вторые сутки. Не гудел, не дрожал, не скрипел — просто стоял, как будто кто-то выключил его из мира. За окнами вагона-ресторана была белая муть, в которой не различалось ни столбов, ни деревьев, ни станции. Только снег. Много снега.\n\nЭрнест Пирогов сидел у окна, держал чашку обеими руками и думал о том, что чай остыл ещё минуту назад. Он не любил холодный чай. Но ещё меньше он любил вставать и просить новый.\n\nЗа соседним столом сидели семеро. Каждый за своим углом, но все в одном поле зрения. Пирогов знал, что рано или поздно кто-то не выдержит и заговорит.',
+    },
+    n2: {
+      type: 'dialogue',
+      speaker: 'char_03',
+      text: 'Господа. Раз уж мы застряли, давайте представимся. Я — княгиня Наталья Драгомирова. Еду к родственникам. Дальше.',
+      tone: 'neutral',
+      noteSpans: [{
+        id: 'n_ch1_01_03',
+        text: 'княгиня Наталья Драгомирова',
+        category: 'psychology',
+        target: 'char_03',
+        truthKey: 'pride',
+      }],
+    },
+    n3: {
+      type: 'dialogue',
+      speaker: 'char_02',
+      text: 'Елена Вронская. Графиня. Простите, я плохо спала.',
+      tone: 'soft',
+      noteSpans: [{
+        id: 'n_ch1_01_02',
+        text: 'Простите, я плохо спала',
+        category: 'psychology',
+        target: 'char_02',
+        truthKey: 'seeks_sympathy',
+      }],
+    },
+    n4: {
+      type: 'dialogue',
+      speaker: 'char_01',
+      text: 'Полковник Дмитрий Соколов. В отставке. Еду домой.',
+      tone: 'neutral',
+      noteSpans: [{
+        id: 'n_ch1_01_01',
+        text: 'Полковник Дмитрий Соколов',
+        category: 'psychology',
+        target: 'char_01',
+        truthKey: 'taps_portcigarette_when_nervous',
+      }],
+    },
+    n5: {
+      type: 'dialogue',
+      speaker: 'char_04',
+      text: 'Пётр Михайлов. Проводник этого вагона. Если что понадобится — я всегда рядом.',
+      tone: 'neutral',
+      noteSpans: [{
+        id: 'n_ch1_01_04',
+        text: 'Проводник беспрестанно протирает руки',
+        category: 'psychology',
+        target: 'char_04',
+        truthKey: 'wipes_things_constantly',
+      }],
+    },
+    n6: {
+      type: 'dialogue',
+      speaker: 'char_05',
+      text: 'Гектор Макаров. Секретарь господина Разумова. То есть... бывший секретарь. Нет, не бывший. Я работаю на него. Работал. Работаю.',
+      tone: 'neutral',
+      noteSpans: [{
+        id: 'n_ch1_01_05',
+        text: 'Секретарь поправляет очки',
+        category: 'psychology',
+        target: 'char_05',
+        truthKey: 'adjusts_glasses',
+      }],
+    },
+    n7: {
+      type: 'dialogue',
+      speaker: 'char_06',
+      text: 'Галина Шмидт. Горничная её сиятельства.',
+      tone: 'soft',
+      noteSpans: [{
+        id: 'n_ch1_01_06',
+        text: 'Горничная опускает глаза',
+        category: 'psychology',
+        target: 'char_06',
+        truthKey: 'lowers_eyes',
+      }],
+    },
+    n8: {
+      type: 'dialogue',
+      speaker: 'char_07',
+      text: 'Аркадий Белов. Профессор. Кафедра... неважно. Кафедра закрыта. Как и многое в этой жизни. Простите. Я забыл, что здесь есть другие люди.',
+      tone: 'neutral',
+      noteSpans: [{
+        id: 'n_ch1_01_07',
+        text: 'Профессор что-то бормочет себе под нос',
+        category: 'psychology',
+        target: 'char_07',
+        truthKey: 'mutters',
+      }],
+    },
+    n9: {
+      type: 'choice',
+      prompt: 'Что делает Пирогов?',
+      options: [
+        {
+          id: 'polite',
+          text: 'Вежливо представиться всем',
+          tone: 'soft',
+          effects: {
+            trust: { char_01: 1, char_02: 1, char_03: 0, char_04: 1, char_05: 0, char_06: 1, char_07: 1 },
+            suspicion: 0,
+            next: 'n10',
+          },
+        },
+        {
+          id: 'observe',
+          text: 'Молча наблюдать за реакциями',
+          tone: 'logical',
+          effects: {
+            trust: { char_07: 1 },
+            suspicion: 5,
+            addNotes: [{
+              id: 'n_mikhailov_hands',
+              text: 'Проводник беспрестанно протирает руки',
+              category: 'psychology',
+              target: 'char_04',
+              truthKey: 'wipes_things_constantly',
+            }],
+            next: 'n10',
+          },
+        },
+      ],
+    },
+    n10: {
+      type: 'end',
+      nextScene: 'ch1_02_ratchett',
+      outcome: 'continue',
+    },
+  },
+};

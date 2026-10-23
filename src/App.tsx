@@ -1,5 +1,456 @@
-export default function App() {
+import { useEffect, useState, useMemo } from 'react';
+import { useGameStore } from './store/gameStore';
+import { getScene } from './data/scenes';
+import { CHARACTERS, SUSPECT_IDS } from './data/characters';
+import { NoteSpan } from './schemas/note';
+import { NoteCategory } from './data/truthTable';
+import './index.css';
+
+const CHAR_EMOJIS: Record<string, string> = {
+  char_01: '🎖', char_02: '💎', char_03: '♛', char_04: '🔑',
+  char_05: '📋', char_06: '🧹', char_07: '📖', detective: '🔍', victim: '💀',
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  motive: 'Мотив', opportunity: 'Возможность', alibi: 'Алиби',
+  psychology: 'Психология', contradiction: 'Противоречие',
+};
+
+const TONE_LABELS: Record<string, string> = {
+  neutral: '', soft: 'мягко', logical: 'логично', pressure: 'давить', sympathy: 'сочувствие',
+};
+
+function SnowParticles() {
+  const particles = useMemo(() =>
+    Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 8,
+      duration: 6 + Math.random() * 6,
+      size: 2 + Math.random() * 3,
+    })), []);
   return (
-    <div/>
+    <div className="snow-particles">
+      {particles.map(p => (
+        <div key={p.id} className="snow-particle" style={{
+          left: `${p.left}%`, animationDelay: `${p.delay}s`,
+          animationDuration: `${p.duration}s`, width: p.size, height: p.size,
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function NoteSpanText({ text, noteSpans, onAddNote }: {
+  text: string; noteSpans?: NoteSpan[]; onAddNote: (span: NoteSpan) => void;
+}) {
+  const notes = useGameStore(s => s.notes);
+  if (!noteSpans || noteSpans.length === 0) return <>{text}</>;
+
+  const parts: React.ReactNode[] = [];
+  let remaining = text;
+  let key = 0;
+
+  for (const span of noteSpans) {
+    const idx = remaining.indexOf(span.text);
+    if (idx === -1) continue;
+    if (idx > 0) parts.push(<span key={key++}>{remaining.slice(0, idx)}</span>);
+    const isAdded = notes.some(n => n.id === span.id);
+    parts.push(
+      <span
+        key={key++}
+        className={`note-highlight ${isAdded ? 'added' : ''}`}
+        onClick={() => !isAdded && onAddNote(span)}
+        title={isAdded ? '✓ В блокноте' : 'Нажмите, чтобы занести в блокнот'}
+      >
+        {span.text}
+      </span>
+    );
+    remaining = remaining.slice(idx + span.text.length);
+  }
+  if (remaining) parts.push(<span key={key++}>{remaining}</span>);
+  return <>{parts}</>;
+}
+
+function MenuScreen() {
+  const { newGame, continueGame, hasSave } = useGameStore();
+  const saved = hasSave();
+  return (
+    <div className="menu">
+      <SnowParticles />
+      <h1 className="menu__title">Убийство в<br />Дальневосточном экспрессе</h1>
+      <p className="menu__subtitle">Интерактивный психологический детектив</p>
+      <button className="menu__btn" onClick={newGame}>Новая игра</button>
+      <button className="menu__btn" onClick={continueGame} disabled={!saved}>
+        Продолжить
+      </button>
+      <div className="menu__version">v0.1.0 • Глава 1</div>
+    </div>
+  );
+}
+
+function SceneScreen() {
+  const {
+    currentSceneId, currentNodeId, sceneSlotsLeft, suspicion,
+    trust, notes, advanceNode, addNote, setScreen, applyChoiceEffects,
+    accusedIds, toggleAccused,
+  } = useGameStore();
+
+  const scene = getScene(currentSceneId);
+  if (!scene) return <div className="scene"><div className="scene__text">Сцена не найдена</div></div>;
+
+  const node = scene.nodes[currentNodeId];
+  if (!node) return <div className="scene"><div className="scene__text">Узел не найден</div></div>;
+
+  const speaker = node.type === 'dialogue' ? CHARACTERS[node.speaker] : null;
+  const noteSpans = (node.type === 'narration' || node.type === 'dialogue') ? node.noteSpans : undefined;
+  const text = node.type === 'narration' || node.type === 'dialogue' ? node.text : '';
+
+  return (
+    <div className="scene">
+      <div className="scene__bg" />
+      <SnowParticles />
+
+      <div className="scene__header">
+        <span className="scene__title">{scene.title}</span>
+        <span className="scene__slots">Слоты: {sceneSlotsLeft} | 🔍 {suspicion}%</span>
+      </div>
+
+      <div className="scene__content">
+        {speaker && (
+          <div className="scene__speaker">
+            <div className="scene__speaker-avatar">{CHAR_EMOJIS[speaker.id] || '?'}</div>
+            <div>
+              <div className="scene__speaker-name">{speaker.name}</div>
+              <div className="scene__speaker-role">{speaker.roleShort}</div>
+            </div>
+          </div>
+        )}
+
+        <div className="scene__text">
+          <NoteSpanText text={text} noteSpans={noteSpans} onAddNote={addNote} />
+        </div>
+
+        {node.type === 'choice' && (
+          <div className="choices">
+            <div className="choices__prompt">{node.prompt}</div>
+            {node.options.map(opt => (
+              <button
+                key={opt.id}
+                className={`choice-btn ${opt.risk === 'high' ? 'choice-btn--risky' : ''}`}
+                onClick={() => applyChoiceEffects(opt.effects)}
+              >
+                {opt.tone && opt.tone !== 'neutral' && (
+                  <span className="choice-btn__tone">[{TONE_LABELS[opt.tone]}]</span>
+                )}
+                {opt.text}
+                {opt.risk === 'high' && ' ⚠️'}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {node.type !== 'choice' && node.type !== 'end' && (
+          <div className="scene__actions">
+            <button className="scene__next-btn" onClick={() => advanceNode()}>
+              Далее →
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="bottom-buttons">
+        <button className="bottom-btn" onClick={() => setScreen('notebook')}>
+          📓 Блокнот {notes.length > 0 && <span className="bottom-btn__badge">{notes.length}</span>}
+        </button>
+        <button className="bottom-btn" onClick={() => setScreen('accusation')}>
+          ⚖️ Обвинить
+        </button>
+        <button className="bottom-btn" onClick={() => setScreen('menu')}>
+          ☰ Меню
+        </button>
+      </div>
+
+      <div className="char-bar">
+        {SUSPECT_IDS.map(id => {
+          const ch = CHARACTERS[id];
+          return (
+            <div
+              key={id}
+              className={`char-bar__item ${accusedIds.includes(id) ? 'char-bar__item--accused' : ''}`}
+              onClick={() => toggleAccused(id)}
+            >
+              <div className="char-bar__avatar">{CHAR_EMOJIS[id]}</div>
+              <div className="char-bar__name">{ch.name.split(' ')[0]}</div>
+              <div className="char-bar__role">{ch.roleShort}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function NotebookOverlay() {
+  const { notes, removeNote, setScreen } = useGameStore();
+  const [filter, setFilter] = useState<string>('all');
+
+  const filtered = filter === 'all' ? notes : notes.filter(n => n.category === filter);
+  const categories = ['all', 'motive', 'opportunity', 'alibi', 'psychology', 'contradiction'];
+
+  return (
+    <div className="overlay">
+      <div className="overlay__header">
+        <span className="overlay__title">📓 Блокнот</span>
+        <button className="overlay__close" onClick={() => setScreen('scene')}>✕</button>
+      </div>
+      <div className="overlay__body">
+        <div className="note-filters">
+          {categories.map(c => (
+            <button
+              key={c}
+              className={`note-filter ${filter === c ? 'note-filter--active' : ''}`}
+              onClick={() => setFilter(c)}
+            >
+              {c === 'all' ? 'Все' : CATEGORY_LABELS[c]}
+            </button>
+          ))}
+        </div>
+        {filtered.length === 0 && (
+          <p style={{ color: 'var(--snow)', opacity: 0.5, textAlign: 'center', marginTop: '2rem' }}>
+            Пока пусто. Выделяйте подозрительные фразы в тексте.
+          </p>
+        )}
+        {filtered.map(note => (
+          <div key={note.id} className="note-card">
+            <div className="note-card__header">
+              <span className="note-card__strength">{note.strength === 'strong' ? '●' : '◦'}</span>
+              <span className={`note-card__category note-card__category--${note.category}`}>
+                {CATEGORY_LABELS[note.category]}
+              </span>
+              <span className="note-card__target">
+                {CHARACTERS[note.target]?.name?.split(' ').slice(-1) || note.target}
+              </span>
+            </div>
+            <div className="note-card__text">«{note.text}»</div>
+            <div className="note-card__truth">
+              {note.truth === 'true' ? '✓ Подтверждено' : note.truth === 'false' ? '✗ Ложь' : '~ Неизвестно'}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AccusationScreen() {
+  const {
+    notes, accusedIds, selectedNoteIds, toggleAccused, toggleNoteForAccusation,
+    submitAccusation, setScreen, getStrengthLabel, getTextScore,
+  } = useGameStore();
+
+  const score = getTextScore();
+  const label = getStrengthLabel();
+
+  return (
+    <div className="accusation">
+      <div className="overlay__header">
+        <span className="overlay__title">⚖️ Обвинение</span>
+        <button className="overlay__close" onClick={() => setScreen('scene')}>✕</button>
+      </div>
+      <div className="overlay__body" style={{ flex: 1 }}>
+        <div className="accusation__section">
+          <div className="accusation__section-title">Обвиняемые ({accusedIds.length}/7)</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {SUSPECT_IDS.map(id => {
+              const ch = CHARACTERS[id];
+              return (
+                <button
+                  key={id}
+                  className={`char-bar__item ${accusedIds.includes(id) ? 'char-bar__item--accused' : ''}`}
+                  onClick={() => toggleAccused(id)}
+                  style={{ minWidth: 70 }}
+                >
+                  <div className="char-bar__avatar">{CHAR_EMOJIS[id]}</div>
+                  <div className="char-bar__name">{ch.name.split(' ')[0]}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="accusation__section">
+          <div className="accusation__section-title">Аргументы ({selectedNoteIds.length}/7, мин. 3)</div>
+          {notes.map(note => (
+            <div
+              key={note.id}
+              className={`note-card ${selectedNoteIds.includes(note.id) ? 'note-card--selected' : ''}`}
+              onClick={() => toggleNoteForAccusation(note.id)}
+            >
+              <div className="note-card__header">
+                <span className="note-card__strength">{note.strength === 'strong' ? '●' : '◦'}</span>
+                <span className={`note-card__category note-card__category--${note.category}`}>
+                  {CATEGORY_LABELS[note.category]}
+                </span>
+                <span className="note-card__target">
+                  {CHARACTERS[note.target]?.name?.split(' ').slice(-1) || note.target}
+                </span>
+              </div>
+              <div className="note-card__text">«{note.text}»</div>
+            </div>
+          ))}
+          {notes.length === 0 && (
+            <p style={{ color: 'var(--snow)', opacity: 0.5, textAlign: 'center' }}>
+              Нет заметок. Вернитесь к расследованию.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="accusation__indicator">
+        <span className="accusation__strength">
+          Дело: {score >= 0 ? label : '—'}
+        </span>
+        <span style={{ fontSize: '0.75rem', color: 'var(--snow)', opacity: 0.5 }}>
+          {score >= 0 ? `Счёт: ${score.toFixed(1)}` : ''}
+        </span>
+      </div>
+
+      <button
+        className="accusation__submit"
+        disabled={accusedIds.length === 0 || selectedNoteIds.length < 3}
+        onClick={submitAccusation}
+      >
+        Предъявить обвинение
+      </button>
+    </div>
+  );
+}
+
+function ResultScreen() {
+  const { lastResult, setScreen, newGame } = useGameStore();
+  if (!lastResult) return null;
+
+  const titles: Record<string, string> = {
+    fail: 'Обвинение рассыпалось',
+    partial_low: 'Один из семерых',
+    partial_high: 'Почти вся картина',
+    full: 'Все семеро',
+  };
+
+  const texts: Record<string, string> = {
+    fail: 'Пирогов назвал имя — и ошибся. Обвиняемый смотрит с жалостью. Полицейский закрывает папку. Репутация детектива пострадала.',
+    partial_low: 'Один из обвиняемых побледнел и кивнул. Но остальные молчат. Пирогов видит часть картины, но не всю.',
+    partial_high: 'Многие из названных переглянулись. «Вы правы, но вы не знаете всего.» Пирогов понимает: сговор глубже.',
+    full: 'Пирогов назвал все семь имён. Тишина. Княгиня первая подняла голову: «Вы правы, месье. Мы все.»',
+  };
+
+  return (
+    <div className="result">
+      <h2 className={`result__title result__title--${lastResult.outcome === 'full' ? 'full' : lastResult.outcome === 'fail' ? 'fail' : 'partial'}`}>
+        {titles[lastResult.outcome]}
+      </h2>
+      <p className="result__text">{texts[lastResult.outcome]}</p>
+      <div className="result__stats">
+        Счёт: {lastResult.score.toFixed(1)} | Покрытие: {lastResult.coverage}/5 |
+        Обвиняемых: {lastResult.accusedCount} | Сильных: {lastResult.strongCount}
+      </div>
+      {lastResult.outcome === 'full' ? (
+        <button className="menu__btn" onClick={() => setScreen('finale')}>Далее →</button>
+      ) : (
+        <>
+          <button className="menu__btn" onClick={() => setScreen('scene')}>Вернуться</button>
+          <button className="menu__btn" onClick={newGame} style={{ marginTop: 8 }}>Заново</button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function FinaleScreen() {
+  const { finaleChoice, setFinaleChoice, newGame } = useGameStore();
+
+  const epilogues: Record<string, string> = {
+    law: 'Семеро арестованы. Пирогов получил орден. Но по ночам он видит девочку с двумя косичками и серьёзным лицом. И понимает: закон есть, а справедливости нет.',
+    justice: 'Полиция уехала ни с чем. «Неизвестный убийца скрылся в снегу.» Пирогов солгал — и спас семерых. Но ложь — тоже тяжесть. Он будет носить её до конца.',
+    silence: 'Пирогов вышел в снег и пошёл по платформе, не оглядываясь. Семеро остались в вагоне — наедине с тем, что сделали. Может быть, это и есть справедливость. А может — просто тишина.',
+  };
+
+  return (
+    <div className="finale">
+      <SnowParticles />
+      {!finaleChoice ? (
+        <>
+          <p className="finale__text">
+            Пирогов достал часы. Стрелки застыли на 2:15. Он посмотрел на семерых — на людей, которые убили человека, чтобы отомстить за ребёнка. И сказал:
+          </p>
+          <div className="finale__choices">
+            <button className="finale__choice" onClick={() => setFinaleChoice('law')}>
+              «Я вызываю полицию. Закон есть закон.»
+            </button>
+            <button className="finale__choice" onClick={() => setFinaleChoice('justice')}>
+              «Я расскажу о неизвестном убийце, который скрылся в снегу.»
+            </button>
+            <button className="finale__choice" onClick={() => setFinaleChoice('silence')}>
+              «Я ничего не скажу. Пусть решают сами.»
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <h2 className="result__title result__title--full">
+            {finaleChoice === 'law' ? 'Закон' : finaleChoice === 'justice' ? 'Справедливость' : 'Молчание'}
+          </h2>
+          <p className="finale__epilogue">{epilogues[finaleChoice]}</p>
+          <p className="finale__epilogue" style={{ marginTop: '1rem', opacity: 0.6 }}>
+            Снег шёл ровно, без ветра.
+          </p>
+          <button className="menu__btn" onClick={newGame} style={{ marginTop: '2rem' }}>
+            На главное меню
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ChapterEndScreen() {
+  const { setScreen, notes } = useGameStore();
+  return (
+    <div className="chapter-end">
+      <SnowParticles />
+      <h2 className="chapter-end__title">Конец Главы 1</h2>
+      <p className="chapter-end__text">
+        Тело Степана Разумова найдено. Семь ножевых ранений. У всех наготове алиби.
+        <br /><br />
+        Пирогов поправил усы и посмотрел на снег за окном. Расследование только начинается.
+      </p>
+      <p style={{ fontSize: '0.8rem', color: 'var(--snow)', opacity: 0.5, marginBottom: '2rem' }}>
+        Заметок собрано: {notes.length}
+      </p>
+      <button className="menu__btn" onClick={() => setScreen('accusation')}>
+        Перейти к обвинению
+      </button>
+      <button className="menu__btn" onClick={() => setScreen('scene')} style={{ marginTop: 8 }}>
+        Вернуться
+      </button>
+    </div>
+  );
+}
+
+export default function App() {
+  const { screen, toast } = useGameStore();
+
+  return (
+    <div className="app">
+      {screen === 'menu' && <MenuScreen />}
+      {screen === 'scene' && <SceneScreen />}
+      {screen === 'notebook' && <NotebookOverlay />}
+      {screen === 'accusation' && <AccusationScreen />}
+      {screen === 'result' && <ResultScreen />}
+      {screen === 'finale' && <FinaleScreen />}
+      {screen === 'chapterEnd' && <ChapterEndScreen />}
+      {toast && <div className="toast">{toast}</div>}
+    </div>
   );
 }
