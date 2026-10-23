@@ -1,73 +1,71 @@
 /**
  * Singleton AudioContext + master GainNode.
- * Ленивая инициализация по user gesture.
+ * Создаётся по init() (user gesture), не при импорте.
  */
+
+/** Мастер-громкость по умолчанию (0..1) */
+const MASTER_VOLUME = 0.5;
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 
 /**
- * Создаёт или возвращает существующий AudioContext.
- * Возвращает null, если Web Audio API недоступен (SSR, тесты).
+ * Возвращает текущий AudioContext (или null, если не создан).
  */
-export function getAudioContext(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
-  if (ctx) return ctx;
-
-  const Ctor =
-    window.AudioContext ??
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-
-  if (!Ctor) return null;
-
-  ctx = new Ctor();
-  master = ctx.createGain();
-  master.gain.value = 1;
-  master.connect(ctx.destination);
-
+export function getContext(): AudioContext | null {
   return ctx;
 }
 
 /**
- * Возвращает master GainNode (или null, если контекст не создан).
+ * Возвращает master GainNode (или null, если не создан).
  */
-export function getMasterGain(): GainNode | null {
-  if (!ctx || !master) return null;
+export function getMaster(): GainNode | null {
   return master;
 }
 
 /**
- * Resume AudioContext (нужен после user gesture в некоторых браузерах).
+ * Создаёт AudioContext, если он ещё не создан.
+ * Использует проверку 'AudioContext' in window для корректной типизации.
  */
-export async function resumeContext(): Promise<void> {
-  if (ctx && ctx.state === 'suspended') {
-    await ctx.resume();
+export function ensureContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  if (!('AudioContext' in window)) return null;
+
+  if (!ctx) {
+    ctx = new window.AudioContext();
+    master = ctx.createGain();
+    master.gain.value = MASTER_VOLUME;
+    master.connect(ctx.destination);
+  }
+  return ctx;
+}
+
+/**
+ * Resume AudioContext, если он suspended (нужно после user gesture).
+ */
+export function resumeContext(): void {
+  const c = ensureContext();
+  if (c && c.state === 'suspended') {
+    void c.resume();
   }
 }
 
 /**
- * Suspend AudioContext (освобождает ресурсы).
+ * Устанавливает мастер-громкость с плавным переходом (50 мс).
  */
-export async function suspendContext(): Promise<void> {
-  if (ctx && ctx.state === 'running') {
-    await ctx.suspend();
+export function setMasterGain(value: number): void {
+  if (master) {
+    master.gain.setTargetAtTime(
+      Math.max(0, Math.min(1, value)),
+      master.context.currentTime,
+      0.05,
+    );
   }
 }
 
 /**
- * Закрывает контекст и освобождает все ресурсы.
+ * Возвращает true, если контекст создан и работает.
  */
-export async function closeContext(): Promise<void> {
-  if (ctx && ctx.state !== 'closed') {
-    await ctx.close();
-  }
-  ctx = null;
-  master = null;
-}
-
-/**
- * Возвращает текущее время контекста (для синхронизации).
- */
-export function getCurrentTime(): number {
-  return ctx ? ctx.currentTime : 0;
+export function isContextReady(): boolean {
+  return ctx !== null && ctx.state === 'running';
 }

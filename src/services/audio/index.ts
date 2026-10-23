@@ -4,4 +4,5 @@
  */
 
 export type { AudioPresetId, AudioApi, PresetInstance, PresetFactory } from './types';
-export { audio, getPresetForScreen } from './api';
+export { audio } from './api';
+export { getPresetForScreen } from './sceneMap';

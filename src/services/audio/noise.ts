@@ -1,12 +1,18 @@
 /**
- * Генератор brown-noise AudioBuffer (2 секунды).
+ * Генератор brown-noise AudioBuffer (2 секунды, моно).
  * Кэшируется для повторного использования.
  */
 
-/** Длительность буфера шума (сек) */
-const NOISE_DURATION_SECONDS = 2;
+/** Длительность буфера (сек) */
+const BUFFER_SECONDS = 2;
 
-let cachedBuffer: AudioBuffer | null = null;
+/** Коэффициент утечки для brown noise */
+const BROWN_LEAK = 0.02;
+
+/** Вес предыдущего значения */
+const LAST_VALUE_WEIGHT = 0.98;
+
+let buffer: AudioBuffer | null = null;
 
 /**
  * Возвращает кэшированный AudioBuffer с brown noise.
@@ -14,28 +20,20 @@ let cachedBuffer: AudioBuffer | null = null;
  * даёт мягкий "тёплый" шум, подходящий для атмосферы.
  */
 export function getBrownNoiseBuffer(ctx: AudioContext): AudioBuffer {
-  if (cachedBuffer) return cachedBuffer;
+  if (buffer) return buffer;
 
   const sampleRate = ctx.sampleRate;
-  const length = sampleRate * NOISE_DURATION_SECONDS;
-  const buffer = ctx.createBuffer(1, length, sampleRate);
-  const data = buffer.getChannelData(0);
+  const length = Math.floor(sampleRate * BUFFER_SECONDS);
+  const b = ctx.createBuffer(1, length, sampleRate);
+  const data = b.getChannelData(0);
 
-  let lastOut = 0;
-  for (let i = 0; i < length; i++) {
+  let last = 0;
+  for (let i = 0; i < length; i += 1) {
     const white = Math.random() * 2 - 1;
-    // Brown noise: интегрируем белый шум
-    lastOut = (lastOut + 0.02 * white) / 1.02;
-    data[i] = lastOut * 3.5; // нормализация
+    last = LAST_VALUE_WEIGHT * last + BROWN_LEAK * white;
+    data[i] = last;
   }
 
-  cachedBuffer = buffer;
-  return buffer;
-}
-
-/**
- * Сбрасывает кэш буфера (для тестов).
- */
-export function resetNoiseCache(): void {
-  cachedBuffer = null;
+  buffer = b;
+  return b;
 }

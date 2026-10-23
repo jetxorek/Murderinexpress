@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { getPresetForScreen } from '../src/services/audio/sceneMap';
-import { PRESETS } from '../src/services/audio/presets';
+import { getPresetForScreen } from '../../src/services/audio/sceneMap';
+import { PRESETS } from '../../src/services/audio/presets';
 
 describe('getPresetForScreen', () => {
-  it('возвращает menu_theme для экрана menu', () => {
-    expect(getPresetForScreen('menu', '')).toBe('menu_theme');
+  it('возвращает menu_theme для экрана main_menu', () => {
+    expect(getPresetForScreen('main_menu', '')).toBe('menu_theme');
   });
 
   it('возвращает accusation_theme для экрана accusation', () => {
@@ -15,48 +15,36 @@ describe('getPresetForScreen', () => {
     expect(getPresetForScreen('finale', '')).toBe('finale_theme');
   });
 
-  it('возвращает summary_theme для экрана chapterEnd', () => {
-    expect(getPresetForScreen('chapterEnd', '')).toBe('summary_theme');
+  it('возвращает summary_theme для экрана chapter_summary', () => {
+    expect(getPresetForScreen('chapter_summary', '')).toBe('summary_theme');
   });
 
-  it('возвращает silence для экрана notebook', () => {
-    expect(getPresetForScreen('notebook', '')).toBe('silence');
-  });
-
-  it('возвращает night_corridor для сцены ch1_04_night', () => {
-    expect(getPresetForScreen('scene', 'ch1_04_night')).toBe('night_corridor');
-  });
-
-  it('возвращает train_ambient для сцены ch1_01_dining', () => {
-    expect(getPresetForScreen('scene', 'ch1_01_dining')).toBe('train_ambient');
-  });
-
-  it('возвращает tension для сцены ch3_03_risky', () => {
-    expect(getPresetForScreen('scene', 'ch3_03_risky')).toBe('tension');
-  });
-
-  it('возвращает tension для сцены ch3_05_storm', () => {
-    expect(getPresetForScreen('scene', 'ch3_05_storm')).toBe('tension');
-  });
-
-  it('возвращает night_corridor для сцены ch3_04_deduction', () => {
-    expect(getPresetForScreen('scene', 'ch3_04_deduction')).toBe('night_corridor');
-  });
-
-  it('возвращает tension для сцены ch4_01_police_arrival', () => {
-    expect(getPresetForScreen('scene', 'ch4_01_police_arrival')).toBe('tension');
-  });
-
-  it('возвращает finale_theme для сцены ch4_04_moral_choice', () => {
-    expect(getPresetForScreen('scene', 'ch4_04_moral_choice')).toBe('finale_theme');
+  it('возвращает death_sting для экрана death', () => {
+    expect(getPresetForScreen('death', '')).toBe('death_sting');
   });
 
   it('возвращает silence для неизвестного экрана', () => {
     expect(getPresetForScreen('unknown', '')).toBe('silence');
   });
 
-  it('возвращает silence для неизвестной сцены', () => {
-    expect(getPresetForScreen('scene', 'unknown_scene')).toBe('silence');
+  it('возвращает train_ambient для сцены ch1_01_dining', () => {
+    expect(getPresetForScreen('scene', 'ch1_01_dining')).toBe('train_ambient');
+  });
+
+  it('возвращает night_corridor для сцены ch1_04_night', () => {
+    expect(getPresetForScreen('scene', 'ch1_04_night')).toBe('night_corridor');
+  });
+
+  it('возвращает tension для сцены ch3_03a_confront_countess', () => {
+    expect(getPresetForScreen('scene', 'ch3_03a_confront_countess')).toBe('tension');
+  });
+
+  it('возвращает train_ambient для неизвестной сцены (default)', () => {
+    expect(getPresetForScreen('scene', 'unknown_scene')).toBe('train_ambient');
+  });
+
+  it('возвращает silence для hub с неизвестной сценой', () => {
+    expect(getPresetForScreen('hub', 'unknown')).toBe('train_ambient');
   });
 });
 

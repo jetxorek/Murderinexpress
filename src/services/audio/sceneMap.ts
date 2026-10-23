@@ -4,84 +4,41 @@
 
 import type { AudioPresetId } from './types';
 
+const SCENE_PRESETS: Record<string, AudioPresetId> = {
+  ch1_01_dining: 'train_ambient',
+  ch1_02_ratchett: 'train_ambient',
+  ch1_03_evening: 'train_ambient',
+  ch1_03a_poker: 'train_ambient',
+  ch1_03b_corridor: 'night_corridor',
+  ch1_03c_countess: 'train_ambient',
+  ch1_04_night: 'night_corridor',
+  ch1_05_morning: 'train_ambient',
+  ch3_03a_confront_countess: 'tension',
+  ch3_03b_search_compartment: 'tension',
+  ch3_03c_confront_professor: 'tension',
+};
+
+const SCREEN_PRESETS: Record<string, AudioPresetId> = {
+  main_menu: 'menu_theme',
+  chapter_summary: 'summary_theme',
+  accusation: 'accusation_theme',
+  accusation_result: 'accusation_theme',
+  death: 'death_sting',
+  finale: 'finale_theme',
+};
+
+const DEFAULT_SCENE_PRESET: AudioPresetId = 'train_ambient';
+const DEFAULT_SCREEN_PRESET: AudioPresetId = 'silence';
+
 /**
  * Возвращает ID пресета для текущего экрана и сцены.
- * Логика:
- * - menu → menu_theme
- * - scene → зависит от sceneId (глава, тип сцены)
- * - notebook → silence (не меняем ambient)
- * - accusation → accusation_theme
- * - result → зависит от исхода (пока tension)
- * - finale → finale_theme
- * - chapterEnd → summary_theme
  */
-export function getPresetForScreen(screen: string, sceneId: string): AudioPresetId {
-  switch (screen) {
-    case 'menu':
-      return 'menu_theme';
-
-    case 'scene':
-      return getPresetForScene(sceneId);
-
-    case 'notebook':
-      // Не меняем ambient при открытии блокнота
-      return 'silence';
-
-    case 'accusation':
-      return 'accusation_theme';
-
-    case 'result':
-      return 'tension';
-
-    case 'finale':
-      return 'finale_theme';
-
-    case 'chapterEnd':
-      return 'summary_theme';
-
-    default:
-      return 'silence';
+export function getPresetForScreen(
+  screen: string,
+  sceneId: string,
+): AudioPresetId {
+  if (screen === 'scene' || screen === 'hub') {
+    return SCENE_PRESETS[sceneId] ?? DEFAULT_SCENE_PRESET;
   }
-}
-
-/**
- * Возвращает пресет для конкретной сцены.
- */
-function getPresetForScene(sceneId: string): AudioPresetId {
-  // Глава 1
-  if (sceneId.startsWith('ch1_')) {
-    if (sceneId === 'ch1_04_night') {
-      return 'night_corridor';
-    }
-    return 'train_ambient';
-  }
-
-  // Глава 2
-  if (sceneId.startsWith('ch2_')) {
-    return 'train_ambient';
-  }
-
-  // Глава 3
-  if (sceneId.startsWith('ch3_')) {
-    if (sceneId === 'ch3_03_risky' || sceneId === 'ch3_05_storm') {
-      return 'tension';
-    }
-    if (sceneId === 'ch3_04_deduction') {
-      return 'night_corridor';
-    }
-    return 'train_ambient';
-  }
-
-  // Глава 4
-  if (sceneId.startsWith('ch4_')) {
-    if (sceneId === 'ch4_01_police_arrival' || sceneId === 'ch4_02_accusation') {
-      return 'tension';
-    }
-    if (sceneId === 'ch4_04_moral_choice') {
-      return 'finale_theme';
-    }
-    return 'train_ambient';
-  }
-
-  return 'silence';
+  return SCREEN_PRESETS[screen] ?? DEFAULT_SCREEN_PRESET;
 }

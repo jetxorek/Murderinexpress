@@ -3,58 +3,53 @@
  * Singleton, инкапсулирующий все аудио-операции.
  */
 
-import type { AudioApi, AudioPresetId } from './types';
-import { getAudioContext, resumeContext } from './context';
-import { startPreset, stopPreset } from './player';
-import { getPresetForScreen } from './sceneMap';
+import type { AudioApi } from './types';
+import { ensureContext, isContextReady, resumeContext, setMasterGain } from './context';
+import { playPreset } from './player';
 
 /** Ключ в localStorage для сохранения громкости */
-const VOLUME_STORAGE_KEY = 'mfe_audio_volume';
+const VOLUME_KEY = 'mfe_audio_volume';
 
 /** Ключ в localStorage для сохранения mute-статуса */
-const MUTE_STORAGE_KEY = 'mfe_audio_muted';
+const MUTED_KEY = 'mfe_audio_muted';
 
 /** Громкость по умолчанию (0..1) */
-const DEFAULT_VOLUME = 0.7;
-
-let volume: number = loadVolume();
-let muted: boolean = loadMuted();
-let initialized = false;
+const DEFAULT_VOLUME = 0.5;
 
 /**
  * Загружает сохранённую громкость из localStorage.
  */
-function loadVolume(): number {
-  if (typeof localStorage === 'undefined') return DEFAULT_VOLUME;
-  const stored = localStorage.getItem(VOLUME_STORAGE_KEY);
-  if (stored === null) return DEFAULT_VOLUME;
-  const parsed = Number.parseFloat(stored);
-  if (Number.isNaN(parsed) || parsed < 0 || parsed > 1) return DEFAULT_VOLUME;
-  return parsed;
-}
-
-/**
- * Сохраняет громкость в localStorage.
- */
-function saveVolume(v: number): void {
-  if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(VOLUME_STORAGE_KEY, String(v));
+function readVolume(): number {
+  try {
+    const raw = localStorage.getItem(VOLUME_KEY);
+    if (!raw) return DEFAULT_VOLUME;
+    const n = Number.parseFloat(raw);
+    if (Number.isFinite(n)) return Math.max(0, Math.min(1, n));
+  } catch {
+    // no-op
+  }
+  return DEFAULT_VOLUME;
 }
 
 /**
  * Загружает сохранённый mute-статус из localStorage.
  */
-function loadMuted(): boolean {
-  if (typeof localStorage === 'undefined') return false;
-  return localStorage.getItem(MUTE_STORAGE_KEY) === 'true';
+function readMuted(): boolean {
+  try {
+    return localStorage.getItem(MUTED_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
+let currentVolume = readVolume();
+let currentMuted = readMuted();
+
 /**
- * Сохраняет mute-статус в localStorage.
+ * Применяет текущую громкость к master gain.
  */
-function saveMuted(b: boolean): void {
-  if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(MUTE_STORAGE_KEY, String(b));
+function applyVolume(): void {
+  setMasterGain(currentMuted ? 0 : currentVolume);
 }
 
 /**
@@ -64,74 +59,62 @@ export const audio: AudioApi = {
   /**
    * Инициализирует AudioContext (должно вызываться по user gesture).
    */
-  init(): void {
-    const ctx = getAudioContext();
-    if (ctx) {
-      void resumeContext();
-      initialized = true;
-    }
+  init: () => {
+    ensureContext();
+    resumeContext();
+    applyVolume();
   },
 
   /**
-   * Возвращает true, если AudioContext инициализирован.
+   * Возвращает true, если AudioContext инициализирован и работает.
    */
-  isInitialized(): boolean {
-    return initialized;
-  },
+  isInitialized: () => isContextReady(),
 
   /**
    * Воспроизводит пресет с crossfade.
    */
-  playPreset(id: AudioPresetId): void {
-    if (!initialized) return;
-    if (muted) return;
-    if (id === 'silence') {
-      void stopPreset();
-      return;
-    }
-    startPreset(id);
-  },
+  playPreset: (id) => playPreset(id),
 
   /**
-   * Останавливает текущий пресет с fade out.
+   * Останавливает текущий пресет (fade out к silence).
    */
-  stop(): void {
-    void stopPreset();
+  stop: () => {
+    playPreset('silence');
   },
 
   /**
    * Устанавливает громкость (0..1).
    */
-  setVolume(v: number): void {
-    volume = Math.max(0, Math.min(1, v));
-    saveVolume(volume);
+  setVolume: (v) => {
+    currentVolume = Math.max(0, Math.min(1, v));
+    try {
+      localStorage.setItem(VOLUME_KEY, String(currentVolume));
+    } catch {
+      // no-op
+    }
+    applyVolume();
   },
 
   /**
    * Возвращает текущую громкость.
    */
-  getVolume(): number {
-    return volume;
-  },
+  getVolume: () => currentVolume,
 
   /**
    * Устанавливает mute-статус.
    */
-  setMuted(b: boolean): void {
-    muted = b;
-    saveMuted(muted);
-    if (muted) {
-      void stopPreset();
+  setMuted: (b) => {
+    currentMuted = b;
+    try {
+      localStorage.setItem(MUTED_KEY, b ? '1' : '0');
+    } catch {
+      // no-op
     }
+    applyVolume();
   },
 
   /**
    * Возвращает mute-статус.
    */
-  isMuted(): boolean {
-    return muted;
-  },
+  isMuted: () => currentMuted,
 };
-
-// Реэкспорт для удобства
-export { getPresetForScreen } from './sceneMap';

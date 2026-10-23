@@ -6,85 +6,25 @@
 import type { AudioPresetId, PresetFactory, PresetInstance } from './types';
 import { getBrownNoiseBuffer } from './noise';
 
-// ─── Константы ─────────────────────────────────────────────────────────────
+// ─── Общие константы ───────────────────────────────────────────────────────
 
-/** Частота низкого гула поезда (Гц) */
-const TRAIN_RUMBLE_FREQ = 55;
+/** Громкость ambient-звуков (0..1) */
+const AMBIENT_GAIN = 0.15;
 
-/** Частота модуляции для ритма колёс (Гц) */
-const TRAIN_RHYTHM_FREQ = 1.5;
+/** Громкость tension-звуков (0..1) */
+const TENSION_GAIN = 0.2;
 
-/** Глубина модуляции частоты (0..1) */
-const TRAIN_MOD_DEPTH = 0.15;
+/** Громкость sting-звуков (0..1) */
+const STING_GAIN = 0.3;
 
-/** Громкость ambient поезда (0..1) */
-const TRAIN_VOLUME = 0.25;
+/** Громкость organ-подобных звуков (0..1) */
+const ORGAN_GAIN = 0.18;
 
-/** Частота среза фильтра ночного коридора (Гц) */
-const CORRIDOR_FILTER_FREQ = 400;
+/** Длительность fade для silence (сек) */
+const SILENCE_FADE_SEC = 0.4;
 
-/** Добротность фильтра ночного коридора */
-const CORRIDOR_FILTER_Q = 0.7;
-
-/** Громкость ночного коридора (0..1) */
-const CORRIDOR_VOLUME = 0.2;
-
-/** Частота основного тона tension (Гц, нота C3) */
-const TENSION_ROOT_FREQ = 130.81;
-
-/** Частота малой терции tension (Гц, нота Eb3) */
-const TENSION_THIRD_FREQ = 155.56;
-
-/** Громкость tension (0..1) */
-const TENSION_VOLUME = 0.3;
-
-/** Частота основного тона death sting (Гц, нота D4) */
-const DEATH_STING_FREQ = 293.66;
-
-/** Длительность атаки death sting (сек) */
-const DEATH_ATTACK = 0.02;
-
-/** Длительность затухания death sting (сек) */
-const DEATH_RELEASE = 2.0;
-
-/** Громкость death sting (0..1) */
-const DEATH_VOLUME = 0.6;
-
-/** Частота основного тона accusation (Гц, нота A3) */
-const ACCUSATION_ROOT_FREQ = 220.0;
-
-/** Частота квинты accusation (Гц, нота E4) */
-const ACCUSATION_FIFTH_FREQ = 329.63;
-
-/** Громкость accusation (0..1) */
-const ACCUSATION_VOLUME = 0.25;
-
-/** Частота основного тона finale (Гц, нота G3) */
-const FINALE_ROOT_FREQ = 196.0;
-
-/** Частота терции finale (Гц, нота B3) */
-const FINALE_THIRD_FREQ = 246.94;
-
-/** Частота квинты finale (Гц, нота D4) */
-const FINALE_FIFTH_FREQ = 293.66;
-
-/** Громкость finale (0..1) */
-const FINALE_VOLUME = 0.3;
-
-/** Частота основного тона menu theme (Гц, нота A2) */
-const MENU_ROOT_FREQ = 110.0;
-
-/** Частота терции menu theme (Гц, нота C3) */
-const MENU_THIRD_FREQ = 130.81;
-
-/** Громкость menu theme (0..1) */
-const MENU_VOLUME = 0.2;
-
-/** Частота основного тона summary (Гц, нота D3) */
-const SUMMARY_ROOT_FREQ = 146.83;
-
-/** Громкость summary (0..1) */
-const SUMMARY_VOLUME = 0.2;
+/** Длительность death sting (сек) */
+export const STING_DURATION_SEC = 1.2;
 
 // ─── Пресеты ───────────────────────────────────────────────────────────────
 
@@ -96,117 +36,180 @@ const silence: PresetFactory = (): PresetInstance => {
 };
 
 /**
- * Menu theme — мягкий эмбиент для главного меню.
- * Два осциллятора с медленной модуляцией.
+ * Menu theme — низкий дрон + редкие "фортепианные" ноты.
+ * Дрон: sine 55 Hz, LFO 0.1 Hz для пульсации.
+ * Ноты: каждые 4 секунды — sine 220 Hz с огибающей.
  */
 const menuTheme: PresetFactory = (ctx, destination): PresetInstance => {
-  const osc1 = ctx.createOscillator();
-  osc1.type = 'sine';
-  osc1.frequency.value = MENU_ROOT_FREQ;
+  // Дрон
+  const drone = ctx.createOscillator();
+  drone.type = 'sine';
+  drone.frequency.value = 55;
 
-  const osc2 = ctx.createOscillator();
-  osc2.type = 'sine';
-  osc2.frequency.value = MENU_THIRD_FREQ;
+  const droneGain = ctx.createGain();
+  droneGain.gain.value = 0.04;
 
-  const gain = ctx.createGain();
-  gain.gain.value = MENU_VOLUME;
+  // LFO для пульсации
+  const lfo = ctx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.value = 0.1;
 
-  osc1.connect(gain);
-  osc2.connect(gain);
-  gain.connect(destination);
+  const lfoGain = ctx.createGain();
+  lfoGain.gain.value = 0.02;
 
-  osc1.start();
-  osc2.start();
+  lfo.connect(lfoGain);
+  lfoGain.connect(droneGain.gain);
+
+  drone.connect(droneGain);
+  droneGain.connect(destination);
+
+  drone.start();
+  lfo.start();
+
+  // Ноты каждые 4 секунды
+  const intervalId = setInterval(() => {
+    const now = ctx.currentTime;
+    const note = ctx.createOscillator();
+    note.type = 'sine';
+    note.frequency.value = 220;
+
+    const noteGain = ctx.createGain();
+    noteGain.gain.setValueAtTime(0, now);
+    noteGain.gain.linearRampToValueAtTime(0.03, now + 0.05); // атака 50 мс
+    noteGain.gain.exponentialRampToValueAtTime(0.001, now + 1.5); // спад 1.5 с
+
+    note.connect(noteGain);
+    noteGain.connect(destination);
+
+    note.start(now);
+    note.stop(now + 1.5);
+  }, 4000);
 
   return {
     stop: () => {
-      osc1.stop();
-      osc2.stop();
+      clearInterval(intervalId);
+      drone.stop();
+      lfo.stop();
     },
   };
 };
 
 /**
- * Summary theme — спокойный тон для сводки главы.
+ * Summary theme — то же, что menu_theme, но LFO 0.15 Hz, дрон 65 Hz.
  */
 const summaryTheme: PresetFactory = (ctx, destination): PresetInstance => {
-  const osc = ctx.createOscillator();
-  osc.type = 'triangle';
-  osc.frequency.value = SUMMARY_ROOT_FREQ;
+  const drone = ctx.createOscillator();
+  drone.type = 'sine';
+  drone.frequency.value = 65;
 
-  const gain = ctx.createGain();
-  gain.gain.value = SUMMARY_VOLUME;
+  const droneGain = ctx.createGain();
+  droneGain.gain.value = 0.04;
 
-  osc.connect(gain);
-  gain.connect(destination);
-  osc.start();
+  const lfo = ctx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.value = 0.15;
+
+  const lfoGain = ctx.createGain();
+  lfoGain.gain.value = 0.02;
+
+  lfo.connect(lfoGain);
+  lfoGain.connect(droneGain.gain);
+
+  drone.connect(droneGain);
+  droneGain.connect(destination);
+
+  drone.start();
+  lfo.start();
+
+  const intervalId = setInterval(() => {
+    const now = ctx.currentTime;
+    const note = ctx.createOscillator();
+    note.type = 'sine';
+    note.frequency.value = 220;
+
+    const noteGain = ctx.createGain();
+    noteGain.gain.setValueAtTime(0, now);
+    noteGain.gain.linearRampToValueAtTime(0.03, now + 0.05);
+    noteGain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+
+    note.connect(noteGain);
+    noteGain.connect(destination);
+
+    note.start(now);
+    note.stop(now + 1.5);
+  }, 4000);
 
   return {
     stop: () => {
-      osc.stop();
+      clearInterval(intervalId);
+      drone.stop();
+      lfo.stop();
     },
   };
 };
 
 /**
- * Train ambient — гул поезда с ритмом колёс.
+ * Train ambient — brown noise через lowpass + LFO для "дыхания".
  */
 const trainAmbient: PresetFactory = (ctx, destination): PresetInstance => {
-  // Основной гул
-  const rumble = ctx.createOscillator();
-  rumble.type = 'sine';
-  rumble.frequency.value = TRAIN_RUMBLE_FREQ;
-
-  // Модулятор для ритма колёс
-  const modulator = ctx.createOscillator();
-  modulator.type = 'sine';
-  modulator.frequency.value = TRAIN_RHYTHM_FREQ;
-
-  const modGain = ctx.createGain();
-  modGain.gain.value = TRAIN_RUMBLE_FREQ * TRAIN_MOD_DEPTH;
-
-  // Усиление гула
-  const rumbleGain = ctx.createGain();
-  rumbleGain.gain.value = TRAIN_VOLUME;
-
-  // Соединения
-  modulator.connect(modGain);
-  modGain.connect(rumble.frequency);
-  rumble.connect(rumbleGain);
-  rumbleGain.connect(destination);
-
-  rumble.start();
-  modulator.start();
-
-  return {
-    stop: () => {
-      rumble.stop();
-      modulator.stop();
-    },
-  };
-};
-
-/**
- * Night corridor — шум метели за окном + низкий гул.
- */
-const nightCorridor: PresetFactory = (ctx, destination): PresetInstance => {
-  // Brown noise через bandpass-фильтр
   const noiseBuffer = getBrownNoiseBuffer(ctx);
   const noise = ctx.createBufferSource();
   noise.buffer = noiseBuffer;
   noise.loop = true;
 
   const filter = ctx.createBiquadFilter();
-  filter.type = 'bandpass';
-  filter.frequency.value = CORRIDOR_FILTER_FREQ;
-  filter.Q.value = CORRIDOR_FILTER_Q;
+  filter.type = 'lowpass';
+  filter.frequency.value = 200;
+  filter.Q.value = 1;
 
-  const noiseGain = ctx.createGain();
-  noiseGain.gain.value = CORRIDOR_VOLUME;
+  const gain = ctx.createGain();
+  gain.gain.value = AMBIENT_GAIN;
+
+  // LFO для "дыхания" рокота
+  const lfo = ctx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.value = 0.15;
+
+  const lfoGain = ctx.createGain();
+  lfoGain.gain.value = 0.05;
+
+  lfo.connect(lfoGain);
+  lfoGain.connect(filter.frequency);
 
   noise.connect(filter);
-  filter.connect(noiseGain);
-  noiseGain.connect(destination);
+  filter.connect(gain);
+  gain.connect(destination);
+
+  noise.start();
+  lfo.start();
+
+  return {
+    stop: () => {
+      noise.stop();
+      lfo.stop();
+    },
+  };
+};
+
+/**
+ * Night corridor — brown noise через низкий lowpass.
+ */
+const nightCorridor: PresetFactory = (ctx, destination): PresetInstance => {
+  const noiseBuffer = getBrownNoiseBuffer(ctx);
+  const noise = ctx.createBufferSource();
+  noise.buffer = noiseBuffer;
+  noise.loop = true;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 120;
+
+  const gain = ctx.createGain();
+  gain.gain.value = 0.08;
+
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(destination);
 
   noise.start();
 
@@ -218,130 +221,184 @@ const nightCorridor: PresetFactory = (ctx, destination): PresetInstance => {
 };
 
 /**
- * Tension — напряжённый минорный дрон.
+ * Tension — низкий пульс + высокочастотное "звено в ушах".
  */
 const tension: PresetFactory = (ctx, destination): PresetInstance => {
-  const osc1 = ctx.createOscillator();
-  osc1.type = 'sawtooth';
-  osc1.frequency.value = TENSION_ROOT_FREQ;
+  // Низкий пульс (сердцебиение)
+  const pulse = ctx.createOscillator();
+  pulse.type = 'sine';
+  pulse.frequency.value = 60;
 
-  const osc2 = ctx.createOscillator();
-  osc2.type = 'sawtooth';
-  osc2.frequency.value = TENSION_THIRD_FREQ;
+  const pulseGain = ctx.createGain();
+  pulseGain.gain.value = TENSION_GAIN;
 
-  // Low-pass фильтр для смягчения
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.value = 800;
+  // LFO для пульсации
+  const lfo = ctx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.value = 1.2;
 
-  const gain = ctx.createGain();
-  gain.gain.value = TENSION_VOLUME;
+  const lfoGain = ctx.createGain();
+  lfoGain.gain.value = 0.05;
 
-  osc1.connect(filter);
-  osc2.connect(filter);
-  filter.connect(gain);
-  gain.connect(destination);
+  lfo.connect(lfoGain);
+  lfoGain.connect(pulseGain.gain);
 
-  osc1.start();
-  osc2.start();
+  pulse.connect(pulseGain);
+  pulseGain.connect(destination);
+
+  pulse.start();
+  lfo.start();
+
+  // Высокочастотное "звено в ушах"
+  const noiseBuffer = getBrownNoiseBuffer(ctx);
+  const noise = ctx.createBufferSource();
+  noise.buffer = noiseBuffer;
+  noise.loop = true;
+
+  const highpass = ctx.createBiquadFilter();
+  highpass.type = 'highpass';
+  highpass.frequency.value = 4000;
+
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.value = 0.02;
+
+  noise.connect(highpass);
+  highpass.connect(noiseGain);
+  noiseGain.connect(destination);
+
+  noise.start();
 
   return {
     stop: () => {
-      osc1.stop();
-      osc2.stop();
+      pulse.stop();
+      lfo.stop();
+      noise.stop();
     },
   };
 };
 
 /**
- * Death sting — короткий аккорд для момента смерти.
+ * Death sting — диссонансный аккорд с огибающей.
  */
 const deathSting: PresetFactory = (ctx, destination): PresetInstance => {
   const now = ctx.currentTime;
 
-  const osc = ctx.createOscillator();
-  osc.type = 'sawtooth';
-  osc.frequency.value = DEATH_STING_FREQ;
-
-  const envelope = ctx.createGain();
-  envelope.gain.setValueAtTime(0, now);
-  envelope.gain.linearRampToValueAtTime(DEATH_VOLUME, now + DEATH_ATTACK);
-  envelope.gain.exponentialRampToValueAtTime(0.001, now + DEATH_ATTACK + DEATH_RELEASE);
-
-  osc.connect(envelope);
-  envelope.connect(destination);
-
-  osc.start(now);
-  osc.stop(now + DEATH_ATTACK + DEATH_RELEASE);
-
-  return {
-    stop: () => {
-      try {
-        osc.stop();
-      } catch {
-        // Уже остановлен
-      }
-    },
-  };
-};
-
-/**
- * Accusation theme — напряжённый, но сдержанный тон.
- */
-const accusationTheme: PresetFactory = (ctx, destination): PresetInstance => {
-  const osc1 = ctx.createOscillator();
-  osc1.type = 'triangle';
-  osc1.frequency.value = ACCUSATION_ROOT_FREQ;
-
-  const osc2 = ctx.createOscillator();
-  osc2.type = 'triangle';
-  osc2.frequency.value = ACCUSATION_FIFTH_FREQ;
-
-  const gain = ctx.createGain();
-  gain.gain.value = ACCUSATION_VOLUME;
-
-  osc1.connect(gain);
-  osc2.connect(gain);
-  gain.connect(destination);
-
-  osc1.start();
-  osc2.start();
-
-  return {
-    stop: () => {
-      osc1.stop();
-      osc2.stop();
-    },
-  };
-};
-
-/**
- * Finale theme — мажорный аккорд для морального выбора.
- */
-const finaleTheme: PresetFactory = (ctx, destination): PresetInstance => {
+  // Три осциллятора: тритон + малая секунда
   const osc1 = ctx.createOscillator();
   osc1.type = 'sine';
-  osc1.frequency.value = FINALE_ROOT_FREQ;
+  osc1.frequency.value = 220;
 
   const osc2 = ctx.createOscillator();
   osc2.type = 'sine';
-  osc2.frequency.value = FINALE_THIRD_FREQ;
+  osc2.frequency.value = 233;
 
   const osc3 = ctx.createOscillator();
   osc3.type = 'sine';
-  osc3.frequency.value = FINALE_FIFTH_FREQ;
+  osc3.frequency.value = 311;
 
   const gain = ctx.createGain();
-  gain.gain.value = FINALE_VOLUME;
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(STING_GAIN, now + 0.01); // атака 10 мс
+  gain.gain.exponentialRampToValueAtTime(0.001, now + STING_DURATION_SEC);
 
   osc1.connect(gain);
   osc2.connect(gain);
   osc3.connect(gain);
   gain.connect(destination);
 
-  osc1.start();
-  osc2.start();
-  osc3.start();
+  osc1.start(now);
+  osc2.start(now);
+  osc3.start(now);
+
+  osc1.stop(now + STING_DURATION_SEC);
+  osc2.stop(now + STING_DURATION_SEC);
+  osc3.stop(now + STING_DURATION_SEC);
+
+  return {
+    stop: () => {
+      try {
+        osc1.stop();
+        osc2.stop();
+        osc3.stop();
+      } catch {
+        // Уже остановлены
+      }
+    },
+  };
+};
+
+/**
+ * Accusation theme — минорное трезвучие с медленной атакой.
+ */
+const accusationTheme: PresetFactory = (ctx, destination): PresetInstance => {
+  const now = ctx.currentTime;
+
+  // F3, A3, C4 — минорное трезвучие
+  const osc1 = ctx.createOscillator();
+  osc1.type = 'sine';
+  osc1.frequency.value = 174.61;
+
+  const osc2 = ctx.createOscillator();
+  osc2.type = 'sine';
+  osc2.frequency.value = 220;
+
+  const osc3 = ctx.createOscillator();
+  osc3.type = 'sine';
+  osc3.frequency.value = 261.63;
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(ORGAN_GAIN, now + 2); // атака 2 с
+
+  osc1.connect(gain);
+  osc2.connect(gain);
+  osc3.connect(gain);
+  gain.connect(destination);
+
+  osc1.start(now);
+  osc2.start(now);
+  osc3.start(now);
+
+  return {
+    stop: () => {
+      osc1.stop();
+      osc2.stop();
+      osc3.stop();
+    },
+  };
+};
+
+/**
+ * Finale theme — ре-минор с медленной атакой.
+ */
+const finaleTheme: PresetFactory = (ctx, destination): PresetInstance => {
+  const now = ctx.currentTime;
+
+  // D3, F3, A3 — ре-минор
+  const osc1 = ctx.createOscillator();
+  osc1.type = 'sine';
+  osc1.frequency.value = 146.83;
+
+  const osc2 = ctx.createOscillator();
+  osc2.type = 'sine';
+  osc2.frequency.value = 174.61;
+
+  const osc3 = ctx.createOscillator();
+  osc3.type = 'sine';
+  osc3.frequency.value = 220;
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.15, now + 3); // атака 3 с
+
+  osc1.connect(gain);
+  osc2.connect(gain);
+  osc3.connect(gain);
+  gain.connect(destination);
+
+  osc1.start(now);
+  osc2.start(now);
+  osc3.start(now);
 
   return {
     stop: () => {
