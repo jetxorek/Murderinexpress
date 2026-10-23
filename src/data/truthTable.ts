@@ -33,6 +33,9 @@ export const TRUTH_TABLE: TruthTable = {
       princess_and_maid_alibis_collapse: 'true',
       countess_lies_about_sleeping_pills: 'true',
       professor_lies_about_library: 'true',
+      open_window_is_staged_escape: 'true',
+      red_kimono_is_plant: 'true',
+      clock_manipulated: 'true',
     },
   },
   char_01: {
@@ -140,6 +143,7 @@ export const TRUTH_TABLE: TruthTable = {
     contradiction: {
       claims_compartment_vs_keys_missing_overnight: 'true',
       claims_stranger_vs_served_arsenyev_family: 'true',
+      button_is_planted: 'true',
     },
   },
   char_05: {
@@ -220,6 +224,7 @@ export const TRUTH_TABLE: TruthTable = {
     contradiction: {
       claims_library_vs_library_locked: 'true',
       claims_stranger_vs_tutor_of_masha: 'true',
+      pipe_cleaner_is_planted: 'true',
     },
   },
   victim: {

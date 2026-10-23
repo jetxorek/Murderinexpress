@@ -69,6 +69,17 @@ export const ch3_02_evidence: Scene = {
         truthKey: 'claims_not_acquainted_vs_family_friend',
       }],
     },
+    n_ch3_02_06: {
+      type: 'narration',
+      text: 'Пуговица от форменного кителя. Пирогов сравнил её с пуговицами на мундире проводника — Михайлов стоял рядом, бледный, руки по швам. Все пуговицы на месте. Все до одной. Эта — подброшена. Кто-то хотел, чтобы вина легла на проводника.',
+      noteSpans: [{
+        id: 'n_ch3_02_06_span',
+        text: 'У проводника все пуговицы на месте — пуговица подброшена',
+        category: 'contradiction',
+        target: 'char_04',
+        truthKey: 'button_is_planted',
+      }],
+    },
     n7: {
       type: 'end',
       nextScene: 'ch3_03_risky',
