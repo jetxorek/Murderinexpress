@@ -1,76 +1,137 @@
 /**
  * Публичное API процедурного звука.
- * Singleton, инкапсулирующий AudioEngine и пресеты.
+ * Singleton, инкапсулирующий все аудио-операции.
  */
 
-import { AudioEngine } from './engine';
-import { PRESETS } from './presets';
-import type { AudioPresetId } from './types';
+import type { AudioApi, AudioPresetId } from './types';
+import { getAudioContext, resumeContext } from './context';
+import { startPreset, stopPreset } from './player';
+import { getPresetForScreen } from './sceneMap';
 
-class AudioAPI {
-  private engine = new AudioEngine();
-  private currentAmbientStop: (() => void) | null = null;
+/** Ключ в localStorage для сохранения громкости */
+const VOLUME_STORAGE_KEY = 'mfe_audio_volume';
 
+/** Ключ в localStorage для сохранения mute-статуса */
+const MUTE_STORAGE_KEY = 'mfe_audio_muted';
+
+/** Громкость по умолчанию (0..1) */
+const DEFAULT_VOLUME = 0.7;
+
+let volume: number = loadVolume();
+let muted: boolean = loadMuted();
+let initialized = false;
+
+/**
+ * Загружает сохранённую громкость из localStorage.
+ */
+function loadVolume(): number {
+  if (typeof localStorage === 'undefined') return DEFAULT_VOLUME;
+  const stored = localStorage.getItem(VOLUME_STORAGE_KEY);
+  if (stored === null) return DEFAULT_VOLUME;
+  const parsed = Number.parseFloat(stored);
+  if (Number.isNaN(parsed) || parsed < 0 || parsed > 1) return DEFAULT_VOLUME;
+  return parsed;
+}
+
+/**
+ * Сохраняет громкость в localStorage.
+ */
+function saveVolume(v: number): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(VOLUME_STORAGE_KEY, String(v));
+}
+
+/**
+ * Загружает сохранённый mute-статус из localStorage.
+ */
+function loadMuted(): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  return localStorage.getItem(MUTE_STORAGE_KEY) === 'true';
+}
+
+/**
+ * Сохраняет mute-статус в localStorage.
+ */
+function saveMuted(b: boolean): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(MUTE_STORAGE_KEY, String(b));
+}
+
+/**
+ * Публичный API аудио.
+ */
+export const audio: AudioApi = {
   /**
-   * Воспроизводит ambient-звук (зацикленный).
-   * Если уже играет другой ambient — останавливает его.
+   * Инициализирует AudioContext (должно вызываться по user gesture).
    */
-  playAmbient(presetId: AudioPresetId): void {
-    this.stopAmbient();
-
-    const factory = PRESETS[presetId];
-    if (!factory) return;
-
-    this.currentAmbientStop = factory(this.engine);
-  }
-
-  /**
-   * Останавливает текущий ambient.
-   */
-  stopAmbient(): void {
-    if (this.currentAmbientStop) {
-      this.currentAmbientStop();
-      this.currentAmbientStop = null;
+  init(): void {
+    const ctx = getAudioContext();
+    if (ctx) {
+      void resumeContext();
+      initialized = true;
     }
-  }
+  },
 
   /**
-   * Воспроизводит короткий sting (одноразовый).
+   * Возвращает true, если AudioContext инициализирован.
    */
-  playSting(presetId: AudioPresetId): void {
-    const factory = PRESETS[presetId];
-    if (!factory) return;
-
-    const stop = factory(this.engine);
-    // Sting сам завершается — не нужно его отслеживать
-    // Но на всякий случай вызываем stop через таймаут
-    setTimeout(stop, 3000);
-  }
+  isInitialized(): boolean {
+    return initialized;
+  },
 
   /**
-   * Устанавливает глобальную громкость (0..1).
+   * Воспроизводит пресет с crossfade.
    */
-  setVolume(value: number): void {
-    this.engine.setVolume(value);
-  }
+  playPreset(id: AudioPresetId): void {
+    if (!initialized) return;
+    if (muted) return;
+    if (id === 'silence') {
+      void stopPreset();
+      return;
+    }
+    startPreset(id);
+  },
+
+  /**
+   * Останавливает текущий пресет с fade out.
+   */
+  stop(): void {
+    void stopPreset();
+  },
+
+  /**
+   * Устанавливает громкость (0..1).
+   */
+  setVolume(v: number): void {
+    volume = Math.max(0, Math.min(1, v));
+    saveVolume(volume);
+  },
 
   /**
    * Возвращает текущую громкость.
    */
   getVolume(): number {
-    return this.engine.getVolume();
-  }
+    return volume;
+  },
 
   /**
-   * Останавливает все звуки и освобождает ресурсы.
+   * Устанавливает mute-статус.
    */
-  stop(): void {
-    this.stopAmbient();
-    this.engine.stopAll();
-  }
-}
+  setMuted(b: boolean): void {
+    muted = b;
+    saveMuted(muted);
+    if (muted) {
+      void stopPreset();
+    }
+  },
 
-/**
- * Singleton для управления звуком.
- */
-export const audio = new AudioAPI();
+  /**
+   * Возвращает mute-статус.
+   */
+  isMuted(): boolean {
+    return muted;
+  },
+};
+
+// Реэкспорт для удобства
+export { getPresetForScreen } from './sceneMap';

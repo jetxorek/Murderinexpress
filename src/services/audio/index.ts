@@ -3,5 +3,5 @@
  * Публичное API — через `audio` singleton.
  */
 
-export type { AudioPresetId } from './types';
-export { audio } from './api';
+export type { AudioPresetId, AudioApi, PresetInstance, PresetFactory } from './types';
+export { audio, getPresetForScreen } from './api';

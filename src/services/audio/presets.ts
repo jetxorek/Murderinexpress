@@ -1,186 +1,367 @@
 /**
- * Пресеты процедурных звуков.
+ * Реестр пресетов процедурного звука.
  * Каждый пресет — функция, создающая звук через Web Audio API.
  */
 
-import type { AudioEngine } from './engine';
+import type { AudioPresetId, PresetFactory, PresetInstance } from './types';
+import { getBrownNoiseBuffer } from './noise';
+
+// ─── Константы ─────────────────────────────────────────────────────────────
 
 /** Частота низкого гула поезда (Гц) */
-const TRAIN_RUMBLE_FREQ = 60;
+const TRAIN_RUMBLE_FREQ = 55;
 
 /** Частота модуляции для ритма колёс (Гц) */
-const TRAIN_RHYTHM_FREQ = 2;
+const TRAIN_RHYTHM_FREQ = 1.5;
 
-/** Громкость гула поезда (0..1) */
-const TRAIN_RUMBLE_VOLUME = 0.3;
+/** Глубина модуляции частоты (0..1) */
+const TRAIN_MOD_DEPTH = 0.15;
 
-/** Частота среза фильтра метели (Гц) */
-const SNOW_FILTER_FREQ = 800;
+/** Громкость ambient поезда (0..1) */
+const TRAIN_VOLUME = 0.25;
 
-/** Добротность фильтра метели */
-const SNOW_FILTER_Q = 0.5;
+/** Частота среза фильтра ночного коридора (Гц) */
+const CORRIDOR_FILTER_FREQ = 400;
 
-/** Громкость метели (0..1) */
-const SNOW_VOLUME = 0.25;
+/** Добротность фильтра ночного коридора */
+const CORRIDOR_FILTER_Q = 0.7;
 
-/** Частота основного тона sting (Гц, нота D4) */
-const STING_ROOT_FREQ = 293.66;
+/** Громкость ночного коридора (0..1) */
+const CORRIDOR_VOLUME = 0.2;
 
-/** Частота терции sting (Гц, нота F4) */
-const STING_THIRD_FREQ = 349.23;
+/** Частота основного тона tension (Гц, нота C3) */
+const TENSION_ROOT_FREQ = 130.81;
 
-/** Частота квинты sting (Гц, нота A4) */
-const STING_FIFTH_FREQ = 440;
+/** Частота малой терции tension (Гц, нота Eb3) */
+const TENSION_THIRD_FREQ = 155.56;
 
-/** Длительность атаке sting (сек) */
-const STING_ATTACK = 0.05;
+/** Громкость tension (0..1) */
+const TENSION_VOLUME = 0.3;
 
-/** Длительность затухания sting (сек) */
-const STING_RELEASE = 1.5;
+/** Частота основного тона death sting (Гц, нота D4) */
+const DEATH_STING_FREQ = 293.66;
 
-/** Громкость sting (0..1) */
-const STING_VOLUME = 0.5;
+/** Длительность атаки death sting (сек) */
+const DEATH_ATTACK = 0.02;
+
+/** Длительность затухания death sting (сек) */
+const DEATH_RELEASE = 2.0;
+
+/** Громкость death sting (0..1) */
+const DEATH_VOLUME = 0.6;
+
+/** Частота основного тона accusation (Гц, нота A3) */
+const ACCUSATION_ROOT_FREQ = 220.0;
+
+/** Частота квинты accusation (Гц, нота E4) */
+const ACCUSATION_FIFTH_FREQ = 329.63;
+
+/** Громкость accusation (0..1) */
+const ACCUSATION_VOLUME = 0.25;
+
+/** Частота основного тона finale (Гц, нота G3) */
+const FINALE_ROOT_FREQ = 196.0;
+
+/** Частота терции finale (Гц, нота B3) */
+const FINALE_THIRD_FREQ = 246.94;
+
+/** Частота квинты finale (Гц, нота D4) */
+const FINALE_FIFTH_FREQ = 293.66;
+
+/** Громкость finale (0..1) */
+const FINALE_VOLUME = 0.3;
+
+/** Частота основного тона menu theme (Гц, нота A2) */
+const MENU_ROOT_FREQ = 110.0;
+
+/** Частота терции menu theme (Гц, нота C3) */
+const MENU_THIRD_FREQ = 130.81;
+
+/** Громкость menu theme (0..1) */
+const MENU_VOLUME = 0.2;
+
+/** Частота основного тона summary (Гц, нота D3) */
+const SUMMARY_ROOT_FREQ = 146.83;
+
+/** Громкость summary (0..1) */
+const SUMMARY_VOLUME = 0.2;
+
+// ─── Пресеты ───────────────────────────────────────────────────────────────
 
 /**
- * Тип функции пресета.
- * Возвращает функцию остановки звука.
+ * Silence — пустой пресет, ничего не играет.
  */
-export type PresetFactory = (engine: AudioEngine) => () => void;
+const silence: PresetFactory = (): PresetInstance => {
+  return { stop: () => {} };
+};
 
 /**
- * Ambient: стук колёс поезда.
- * Низкочастотный осциллятор с ритмичной модуляцией.
+ * Menu theme — мягкий эмбиент для главного меню.
+ * Два осциллятора с медленной модуляцией.
  */
-export const ambientTrain: PresetFactory = (engine) => {
-  const ctx = engine.getContext();
-  const master = engine.getMasterGain();
-  if (!ctx || !master) return () => {};
+const menuTheme: PresetFactory = (ctx, destination): PresetInstance => {
+  const osc1 = ctx.createOscillator();
+  osc1.type = 'sine';
+  osc1.frequency.value = MENU_ROOT_FREQ;
 
+  const osc2 = ctx.createOscillator();
+  osc2.type = 'sine';
+  osc2.frequency.value = MENU_THIRD_FREQ;
+
+  const gain = ctx.createGain();
+  gain.gain.value = MENU_VOLUME;
+
+  osc1.connect(gain);
+  osc2.connect(gain);
+  gain.connect(destination);
+
+  osc1.start();
+  osc2.start();
+
+  return {
+    stop: () => {
+      osc1.stop();
+      osc2.stop();
+    },
+  };
+};
+
+/**
+ * Summary theme — спокойный тон для сводки главы.
+ */
+const summaryTheme: PresetFactory = (ctx, destination): PresetInstance => {
+  const osc = ctx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.value = SUMMARY_ROOT_FREQ;
+
+  const gain = ctx.createGain();
+  gain.gain.value = SUMMARY_VOLUME;
+
+  osc.connect(gain);
+  gain.connect(destination);
+  osc.start();
+
+  return {
+    stop: () => {
+      osc.stop();
+    },
+  };
+};
+
+/**
+ * Train ambient — гул поезда с ритмом колёс.
+ */
+const trainAmbient: PresetFactory = (ctx, destination): PresetInstance => {
   // Основной гул
   const rumble = ctx.createOscillator();
   rumble.type = 'sine';
   rumble.frequency.value = TRAIN_RUMBLE_FREQ;
 
-  // Модулятор для ритма
+  // Модулятор для ритма колёс
   const modulator = ctx.createOscillator();
   modulator.type = 'sine';
   modulator.frequency.value = TRAIN_RHYTHM_FREQ;
 
   const modGain = ctx.createGain();
-  modGain.gain.value = TRAIN_RUMBLE_FREQ * 0.1;
+  modGain.gain.value = TRAIN_RUMBLE_FREQ * TRAIN_MOD_DEPTH;
 
   // Усиление гула
   const rumbleGain = ctx.createGain();
-  rumbleGain.gain.value = TRAIN_RUMBLE_VOLUME;
+  rumbleGain.gain.value = TRAIN_VOLUME;
 
   // Соединения
   modulator.connect(modGain);
   modGain.connect(rumble.frequency);
   rumble.connect(rumbleGain);
-  rumbleGain.connect(master);
+  rumbleGain.connect(destination);
 
   rumble.start();
   modulator.start();
 
-  engine.trackSource(rumble);
-  engine.trackSource(modulator);
-
-  return () => {
-    engine.stopSource(rumble);
-    engine.stopSource(modulator);
+  return {
+    stop: () => {
+      rumble.stop();
+      modulator.stop();
+    },
   };
 };
 
 /**
- * Ambient: метель за окном.
- * Белый шум через bandpass-фильтр.
+ * Night corridor — шум метели за окном + низкий гул.
  */
-export const ambientSnow: PresetFactory = (engine) => {
-  const ctx = engine.getContext();
-  const master = engine.getMasterGain();
-  if (!ctx || !master) return () => {};
-
-  // Генератор белого шума через buffer
-  const bufferSize = ctx.sampleRate * 2;
-  const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-  const output = noiseBuffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) {
-    output[i] = Math.random() * 2 - 1;
-  }
-
+const nightCorridor: PresetFactory = (ctx, destination): PresetInstance => {
+  // Brown noise через bandpass-фильтр
+  const noiseBuffer = getBrownNoiseBuffer(ctx);
   const noise = ctx.createBufferSource();
   noise.buffer = noiseBuffer;
   noise.loop = true;
 
-  // Bandpass фильтр
   const filter = ctx.createBiquadFilter();
   filter.type = 'bandpass';
-  filter.frequency.value = SNOW_FILTER_FREQ;
-  filter.Q.value = SNOW_FILTER_Q;
+  filter.frequency.value = CORRIDOR_FILTER_FREQ;
+  filter.Q.value = CORRIDOR_FILTER_Q;
 
-  // Усиление
-  const gain = ctx.createGain();
-  gain.gain.value = SNOW_VOLUME;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.value = CORRIDOR_VOLUME;
 
-  // Соединения
   noise.connect(filter);
-  filter.connect(gain);
-  gain.connect(master);
+  filter.connect(noiseGain);
+  noiseGain.connect(destination);
 
   noise.start();
 
-  engine.trackSource(noise);
-
-  return () => {
-    engine.stopSource(noise);
+  return {
+    stop: () => {
+      noise.stop();
+    },
   };
 };
 
 /**
- * Sting: короткий аккорд для момента раскрытия.
- * Минорный аккорд (D-F-A) с атакой и затуханием.
+ * Tension — напряжённый минорный дрон.
  */
-export const stingReveal: PresetFactory = (engine) => {
-  const ctx = engine.getContext();
-  const master = engine.getMasterGain();
-  if (!ctx || !master) return () => {};
+const tension: PresetFactory = (ctx, destination): PresetInstance => {
+  const osc1 = ctx.createOscillator();
+  osc1.type = 'sawtooth';
+  osc1.frequency.value = TENSION_ROOT_FREQ;
 
+  const osc2 = ctx.createOscillator();
+  osc2.type = 'sawtooth';
+  osc2.frequency.value = TENSION_THIRD_FREQ;
+
+  // Low-pass фильтр для смягчения
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 800;
+
+  const gain = ctx.createGain();
+  gain.gain.value = TENSION_VOLUME;
+
+  osc1.connect(filter);
+  osc2.connect(filter);
+  filter.connect(gain);
+  gain.connect(destination);
+
+  osc1.start();
+  osc2.start();
+
+  return {
+    stop: () => {
+      osc1.stop();
+      osc2.stop();
+    },
+  };
+};
+
+/**
+ * Death sting — короткий аккорд для момента смерти.
+ */
+const deathSting: PresetFactory = (ctx, destination): PresetInstance => {
   const now = ctx.currentTime;
 
-  // Создаём три осциллятора для аккорда
-  const frequencies = [STING_ROOT_FREQ, STING_THIRD_FREQ, STING_FIFTH_FREQ];
-  const oscillators: OscillatorNode[] = [];
+  const osc = ctx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.value = DEATH_STING_FREQ;
 
   const envelope = ctx.createGain();
   envelope.gain.setValueAtTime(0, now);
-  envelope.gain.linearRampToValueAtTime(STING_VOLUME, now + STING_ATTACK);
-  envelope.gain.linearRampToValueAtTime(0, now + STING_ATTACK + STING_RELEASE);
+  envelope.gain.linearRampToValueAtTime(DEATH_VOLUME, now + DEATH_ATTACK);
+  envelope.gain.exponentialRampToValueAtTime(0.001, now + DEATH_ATTACK + DEATH_RELEASE);
 
-  for (const freq of frequencies) {
-    const osc = ctx.createOscillator();
-    osc.type = 'triangle';
-    osc.frequency.value = freq;
-    osc.connect(envelope);
-    osc.start(now);
-    osc.stop(now + STING_ATTACK + STING_RELEASE);
-    oscillators.push(osc);
-    engine.trackSource(osc);
-  }
+  osc.connect(envelope);
+  envelope.connect(destination);
 
-  envelope.connect(master);
+  osc.start(now);
+  osc.stop(now + DEATH_ATTACK + DEATH_RELEASE);
 
-  return () => {
-    for (const osc of oscillators) {
-      engine.stopSource(osc);
-    }
+  return {
+    stop: () => {
+      try {
+        osc.stop();
+      } catch {
+        // Уже остановлен
+      }
+    },
   };
 };
 
 /**
- * Маппинг ID пресета на фабрику.
+ * Accusation theme — напряжённый, но сдержанный тон.
  */
-export const PRESETS: Record<string, PresetFactory> = {
-  ambient_train: ambientTrain,
-  ambient_snow: ambientSnow,
-  sting_reveal: stingReveal,
+const accusationTheme: PresetFactory = (ctx, destination): PresetInstance => {
+  const osc1 = ctx.createOscillator();
+  osc1.type = 'triangle';
+  osc1.frequency.value = ACCUSATION_ROOT_FREQ;
+
+  const osc2 = ctx.createOscillator();
+  osc2.type = 'triangle';
+  osc2.frequency.value = ACCUSATION_FIFTH_FREQ;
+
+  const gain = ctx.createGain();
+  gain.gain.value = ACCUSATION_VOLUME;
+
+  osc1.connect(gain);
+  osc2.connect(gain);
+  gain.connect(destination);
+
+  osc1.start();
+  osc2.start();
+
+  return {
+    stop: () => {
+      osc1.stop();
+      osc2.stop();
+    },
+  };
+};
+
+/**
+ * Finale theme — мажорный аккорд для морального выбора.
+ */
+const finaleTheme: PresetFactory = (ctx, destination): PresetInstance => {
+  const osc1 = ctx.createOscillator();
+  osc1.type = 'sine';
+  osc1.frequency.value = FINALE_ROOT_FREQ;
+
+  const osc2 = ctx.createOscillator();
+  osc2.type = 'sine';
+  osc2.frequency.value = FINALE_THIRD_FREQ;
+
+  const osc3 = ctx.createOscillator();
+  osc3.type = 'sine';
+  osc3.frequency.value = FINALE_FIFTH_FREQ;
+
+  const gain = ctx.createGain();
+  gain.gain.value = FINALE_VOLUME;
+
+  osc1.connect(gain);
+  osc2.connect(gain);
+  osc3.connect(gain);
+  gain.connect(destination);
+
+  osc1.start();
+  osc2.start();
+  osc3.start();
+
+  return {
+    stop: () => {
+      osc1.stop();
+      osc2.stop();
+      osc3.stop();
+    },
+  };
+};
+
+// ─── Реестр ────────────────────────────────────────────────────────────────
+
+export const PRESETS: Record<AudioPresetId, PresetFactory> = {
+  silence,
+  menu_theme: menuTheme,
+  summary_theme: summaryTheme,
+  train_ambient: trainAmbient,
+  night_corridor: nightCorridor,
+  tension,
+  death_sting: deathSting,
+  accusation_theme: accusationTheme,
+  finale_theme: finaleTheme,
 };
