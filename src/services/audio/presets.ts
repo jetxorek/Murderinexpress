@@ -47,9 +47,20 @@ function playNote(
   osc.frequency.value = freq;
 
   const env = ctx.createGain();
+  
+  // Адаптивная огибающая для коротких нот
+  const attack = Math.min(NOTE_ATTACK, duration * 0.3);
+  const release = Math.min(NOTE_RELEASE, duration * 0.5);
+  const sustainEnd = startTime + duration - release;
+  
   env.gain.setValueAtTime(0, startTime);
-  env.gain.linearRampToValueAtTime(gain, startTime + NOTE_ATTACK);
-  env.gain.setValueAtTime(gain, startTime + duration - NOTE_RELEASE);
+  env.gain.linearRampToValueAtTime(gain, startTime + attack);
+  
+  // Sustain только если есть место между attack и release
+  if (sustainEnd > startTime + attack) {
+    env.gain.setValueAtTime(gain, sustainEnd);
+  }
+  
   env.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
 
   osc.connect(env);
@@ -79,12 +90,17 @@ function playMelodyLoop(
   function schedule() {
     if (stopped) return;
 
-    while (nextNoteTime < ctx.currentTime + scheduleAhead) {
-      if (notes[noteIndex] > 0) {
-        playNote(ctx, destination, notes[noteIndex], nextNoteTime, noteDuration * 0.9, gain, type);
+    try {
+      while (nextNoteTime < ctx.currentTime + scheduleAhead) {
+        if (notes[noteIndex] > 0) {
+          playNote(ctx, destination, notes[noteIndex], nextNoteTime, noteDuration * 0.9, gain, type);
+        }
+        nextNoteTime += noteDuration;
+        noteIndex = (noteIndex + 1) % notes.length;
       }
-      nextNoteTime += noteDuration;
-      noteIndex = (noteIndex + 1) % notes.length;
+    } catch (error) {
+      // Игнорируем ошибки аудио, чтобы не ломать UI
+      console.warn('Audio scheduling error:', error);
     }
 
     setTimeout(schedule, 100);
@@ -102,6 +118,21 @@ function playMelodyLoop(
 // ─── Пресеты ───────────────────────────────────────────────────────────────
 
 /**
+ * Безопасная обёртка для создания пресета.
+ * Перехватывает ошибки аудио, чтобы не ломать UI.
+ */
+function safePreset(factory: PresetFactory): PresetFactory {
+  return (ctx, destination) => {
+    try {
+      return factory(ctx, destination);
+    } catch (error) {
+      console.warn('Preset creation error:', error);
+      return { stop: () => {} };
+    }
+  };
+}
+
+/**
  * Silence — тишина.
  */
 const silence: PresetFactory = (): PresetInstance => {
@@ -115,6 +146,7 @@ const silence: PresetFactory = (): PresetInstance => {
  */
 const menuTheme: PresetFactory = (ctx, destination): PresetInstance => {
   const stops: (() => void)[] = [];
+  const padOscs: OscillatorNode[] = [];
 
   // Басовая линия: медленные ноты D2 и A2
   const bassNotes = [73.42, 0, 110.0, 0, 82.41, 0, 110.0, 0]; // D2, -, A2, -, E2, -, A2, -
@@ -131,7 +163,6 @@ const menuTheme: PresetFactory = (ctx, destination): PresetInstance => {
 
   // Аккорд-подложка: Dm7 (D3, F3, A3, C4)
   const padFreqs = [146.83, 174.61, 220.0, 261.63];
-  const padOscs: OscillatorNode[] = [];
   const padGain = ctx.createGain();
   padGain.gain.value = PAD_GAIN;
   padGain.connect(destination);
@@ -457,12 +488,12 @@ const finaleTheme: PresetFactory = (ctx, destination): PresetInstance => {
 
 export const PRESETS: Record<AudioPresetId, PresetFactory> = {
   silence,
-  menu_theme: menuTheme,
-  summary_theme: summaryTheme,
-  train_ambient: trainAmbient,
-  night_corridor: nightCorridor,
-  tension,
-  death_sting: deathSting,
-  accusation_theme: accusationTheme,
-  finale_theme: finaleTheme,
+  menu_theme: safePreset(menuTheme),
+  summary_theme: safePreset(summaryTheme),
+  train_ambient: safePreset(trainAmbient),
+  night_corridor: safePreset(nightCorridor),
+  tension: safePreset(tension),
+  death_sting: safePreset(deathSting),
+  accusation_theme: safePreset(accusationTheme),
+  finale_theme: safePreset(finaleTheme),
 };
