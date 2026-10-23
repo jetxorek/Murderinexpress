@@ -179,9 +179,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         set({ currentNodeId: nextNodeId, textRevealed: false });
       }
     } else {
-      // Auto-advance: find next node
+      // Auto-advance: find next node (works for narration, dialogue, etc.)
       const currentNode = scene.nodes[state.currentNodeId];
-      if (currentNode && currentNode.type === 'narration') {
+      if (currentNode && currentNode.type !== 'choice' && currentNode.type !== 'end') {
         // Find next node in order
         const nodeKeys = Object.keys(scene.nodes);
         const currentIdx = nodeKeys.indexOf(state.currentNodeId);
