@@ -7,7 +7,7 @@ import { NoteCategory } from './data/truthTable';
 import './index.css';
 
 const CHAR_EMOJIS: Record<string, string> = {
-  char_01: '🎖', char_02: '💎', char_03: '♛', char_04: '🔑',
+  char_01: '🎖️', char_02: '💎', char_03: '♛', char_04: '🔑',
   char_05: '📋', char_06: '🧹', char_07: '📖', detective: '🔍', victim: '💀',
 };
 
@@ -425,15 +425,21 @@ function FinaleScreen() {
 }
 
 function ChapterEndScreen() {
-  const { setScreen, notes, advanceNode, currentSceneId } = useGameStore();
+  const { setScreen, notes, currentSceneId } = useGameStore();
   
   const isChapter1End = currentSceneId === 'ch1_05_morning';
   const isChapter2End = currentSceneId === 'ch2_05_police_announce';
   
   const handleContinue = () => {
     if (isChapter1End) {
-      // Переход к главе 2
-      advanceNode('ch2_01_crime_scene');
+      // Переход к главе 2 — меняем сцену и экран
+      useGameStore.setState({
+        currentSceneId: 'ch2_01_crime_scene',
+        currentNodeId: 'n1',
+        sceneSlotsLeft: 6,
+        screen: 'scene',
+        textRevealed: false,
+      });
     } else if (isChapter2End) {
       // Переход к обвинению
       setScreen('accusation');

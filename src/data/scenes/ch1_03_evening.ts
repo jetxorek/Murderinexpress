@@ -64,21 +64,21 @@ export const ch1_03_evening: Scene = {
       noteSpans: [
         {
           id: 'n_ch1_03b_01',
-          text: 'Проводник снова протирает руки',
+          text: 'он всё равно протирал их о брюки',
           category: 'psychology',
           target: 'char_04',
           truthKey: 'wipes_things_constantly',
         },
         {
           id: 'n_ch1_03b_02',
-          text: 'Проводник отпирает купе ключом из связки',
+          text: 'перед связкой ключей, разложенной на полу',
           category: 'opportunity',
           target: 'char_04',
           truthKey: 'had_keys',
         },
         {
           id: 'n_ch1_03b_03',
-          text: 'Графиня стоит у купе Разумова',
+          text: 'В щели стояла графиня Вронская',
           category: 'opportunity',
           target: 'char_02',
           truthKey: 'was_near_compartment',

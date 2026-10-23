@@ -116,7 +116,7 @@ export const ch1_01_dining: Scene = {
           effects: {
             trust: { char_01: 1, char_02: 1, char_03: 0, char_04: 1, char_05: 0, char_06: 1, char_07: 1 },
             suspicion: 0,
-            next: 'n10',
+            next: 'n_polite_intro',
           },
         },
         {
@@ -133,10 +133,20 @@ export const ch1_01_dining: Scene = {
               target: 'char_04',
               truthKey: 'wipes_things_constantly',
             }],
-            next: 'n10',
+            next: 'n_observe_intro',
           },
         },
       ],
+    },
+    n_polite_intro: {
+      type: 'dialogue',
+      speaker: 'detective',
+      text: 'Эрнест Пирогов. Частный детектив. В отставке. Еду по личным делам. Рад знакомству, хотя повод, признаюсь, не самый приятный.',
+      tone: 'soft',
+    },
+    n_observe_intro: {
+      type: 'narration',
+      text: 'Пирогов ничего не говорит. Только кивает и смотрит. Смотрит, как графиня снова тянется к броши. Как проводник протирает руки. Как секретарь поправляет очки.',
     },
     n10: {
       type: 'end',
