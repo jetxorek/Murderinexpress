@@ -1,410 +1,454 @@
 /**
- * Реестр пресетов процедурного звука.
- * Каждый пресет — функция, создающая звук через Web Audio API.
+ * Реестр пресетов процедурной музыки.
+ * Каждый пресет — мелодия, созданная через Web Audio API.
  */
 
 import type { AudioPresetId, PresetFactory, PresetInstance } from './types';
-import { getBrownNoiseBuffer } from './noise';
 
 // ─── Общие константы ───────────────────────────────────────────────────────
 
-/** Громкость ambient-звуков (0..1) */
-const AMBIENT_GAIN = 0.5;
+/** Громкость мелодий (0..1) */
+const MELODY_GAIN = 0.25;
 
-/** Громкость tension-звуков (0..1) */
-const TENSION_GAIN = 0.6;
+/** Громкость басовой линии (0..1) */
+const BASS_GAIN = 0.18;
 
-/** Громкость sting-звуков (0..1) */
-const STING_GAIN = 0.8;
+/** Громкость аккордов-подложек (0..1) */
+const PAD_GAIN = 0.12;
 
-/** Громкость organ-подобных звуков (0..1) */
-const ORGAN_GAIN = 0.5;
+/** Громкость sting (0..1) */
+const STING_GAIN = 0.6;
 
-/** Длительность fade для silence (сек) */
-const SILENCE_FADE_SEC = 0.4;
+/** Атака ноты (сек) */
+const NOTE_ATTACK = 0.02;
+
+/** Спад ноты (сек) */
+const NOTE_RELEASE = 0.4;
 
 /** Длительность death sting (сек) */
-export const STING_DURATION_SEC = 1.2;
+export const STING_DURATION_SEC = 1.5;
+
+// ─── Утилиты ───────────────────────────────────────────────────────────────
+
+/**
+ * Проигрывает одну ноту с огибающей.
+ */
+function playNote(
+  ctx: AudioContext,
+  destination: AudioNode,
+  freq: number,
+  startTime: number,
+  duration: number,
+  gain: number,
+  type: OscillatorType = 'sine',
+): void {
+  const osc = ctx.createOscillator();
+  osc.type = type;
+  osc.frequency.value = freq;
+
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, startTime);
+  env.gain.linearRampToValueAtTime(gain, startTime + NOTE_ATTACK);
+  env.gain.setValueAtTime(gain, startTime + duration - NOTE_RELEASE);
+  env.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+  osc.connect(env);
+  env.connect(destination);
+
+  osc.start(startTime);
+  osc.stop(startTime + duration);
+}
+
+/**
+ * Проигрывает последовательность нот (арпеджио/мелодию) циклически.
+ */
+function playMelodyLoop(
+  ctx: AudioContext,
+  destination: AudioNode,
+  notes: number[],
+  noteDuration: number,
+  gain: number,
+  type: OscillatorType = 'triangle',
+): { stop: () => void } {
+  let stopped = false;
+  let nextNoteTime = ctx.currentTime;
+  let noteIndex = 0;
+
+  const scheduleAhead = 0.5; // планируем на 500 мс вперёд
+
+  function schedule() {
+    if (stopped) return;
+
+    while (nextNoteTime < ctx.currentTime + scheduleAhead) {
+      if (notes[noteIndex] > 0) {
+        playNote(ctx, destination, notes[noteIndex], nextNoteTime, noteDuration * 0.9, gain, type);
+      }
+      nextNoteTime += noteDuration;
+      noteIndex = (noteIndex + 1) % notes.length;
+    }
+
+    setTimeout(schedule, 100);
+  }
+
+  schedule();
+
+  return {
+    stop: () => {
+      stopped = true;
+    },
+  };
+}
 
 // ─── Пресеты ───────────────────────────────────────────────────────────────
 
 /**
- * Silence — пустой пресет, ничего не играет.
+ * Silence — тишина.
  */
 const silence: PresetFactory = (): PresetInstance => {
   return { stop: () => {} };
 };
 
 /**
- * Menu theme — низкий дрон + редкие "фортепианные" ноты.
- * Дрон: sine 55 Hz, LFO 0.1 Hz для пульсации.
- * Ноты: каждые 4 секунды — sine 220 Hz с огибающей.
+ * Menu theme — элегантная мелодия в стиле 1930-х.
+ * Тональность: D-минор. Спокойная, загадочная.
+ * Бас: D2, A2. Мелодия: D4, F4, A4, C5, D5.
  */
 const menuTheme: PresetFactory = (ctx, destination): PresetInstance => {
-  // Дрон
-  const drone = ctx.createOscillator();
-  drone.type = 'sine';
-  drone.frequency.value = 55;
+  const stops: (() => void)[] = [];
 
-  const droneGain = ctx.createGain();
-  droneGain.gain.value = 0.15;
+  // Басовая линия: медленные ноты D2 и A2
+  const bassNotes = [73.42, 0, 110.0, 0, 82.41, 0, 110.0, 0]; // D2, -, A2, -, E2, -, A2, -
+  const bass = playMelodyLoop(ctx, destination, bassNotes, 1.2, BASS_GAIN, 'sine');
+  stops.push(bass.stop);
 
-  // LFO для пульсации
-  const lfo = ctx.createOscillator();
-  lfo.type = 'sine';
-  lfo.frequency.value = 0.1;
+  // Мелодия: элегантная фраза в D-миноре
+  const melodyNotes = [
+    293.66, 0, 349.23, 0, 440.0, 523.25, 0, 440.0,
+    349.23, 0, 293.66, 0, 261.63, 0, 293.66, 0,
+  ]; // D4, -, F4, -, A4, C5, -, A4, F4, -, D4, -, C4, -, D4, -
+  const melody = playMelodyLoop(ctx, destination, melodyNotes, 0.6, MELODY_GAIN, 'triangle');
+  stops.push(melody.stop);
 
-  const lfoGain = ctx.createGain();
-  lfoGain.gain.value = 0.08;
+  // Аккорд-подложка: Dm7 (D3, F3, A3, C4)
+  const padFreqs = [146.83, 174.61, 220.0, 261.63];
+  const padOscs: OscillatorNode[] = [];
+  const padGain = ctx.createGain();
+  padGain.gain.value = PAD_GAIN;
+  padGain.connect(destination);
 
-  lfo.connect(lfoGain);
-  lfoGain.connect(droneGain.gain);
-
-  drone.connect(droneGain);
-  droneGain.connect(destination);
-
-  drone.start();
-  lfo.start();
-
-  // Ноты каждые 4 секунды
-  const intervalId = setInterval(() => {
-    const now = ctx.currentTime;
-    const note = ctx.createOscillator();
-    note.type = 'sine';
-    note.frequency.value = 220;
-
-    const noteGain = ctx.createGain();
-    noteGain.gain.setValueAtTime(0, now);
-    noteGain.gain.linearRampToValueAtTime(0.12, now + 0.05); // атака 50 мс
-    noteGain.gain.exponentialRampToValueAtTime(0.001, now + 1.5); // спад 1.5 с
-
-    note.connect(noteGain);
-    noteGain.connect(destination);
-
-    note.start(now);
-    note.stop(now + 1.5);
-  }, 4000);
+  for (const freq of padFreqs) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc.connect(padGain);
+    osc.start();
+    padOscs.push(osc);
+  }
 
   return {
     stop: () => {
-      clearInterval(intervalId);
-      drone.stop();
-      lfo.stop();
+      stops.forEach((s) => s());
+      padOscs.forEach((o) => { try { o.stop(); } catch { /* noop */ } });
     },
   };
 };
 
 /**
- * Summary theme — то же, что menu_theme, но LFO 0.15 Hz, дрон 65 Hz.
+ * Summary theme — задумчивая мелодия для сводки главы.
+ * Тональность: F-мажор. Спокойная, с надеждой.
  */
 const summaryTheme: PresetFactory = (ctx, destination): PresetInstance => {
-  const drone = ctx.createOscillator();
-  drone.type = 'sine';
-  drone.frequency.value = 65;
+  const stops: (() => void)[] = [];
 
-  const droneGain = ctx.createGain();
-  droneGain.gain.value = 0.15;
+  // Бас: F2, C3
+  const bassNotes = [87.31, 0, 130.81, 0, 87.31, 0, 130.81, 0];
+  const bass = playMelodyLoop(ctx, destination, bassNotes, 1.0, BASS_GAIN, 'sine');
+  stops.push(bass.stop);
 
-  const lfo = ctx.createOscillator();
-  lfo.type = 'sine';
-  lfo.frequency.value = 0.15;
+  // Мелодия: F4, A4, C5, F5 — восходящая, светлая
+  const melodyNotes = [
+    349.23, 0, 440.0, 523.25, 0, 698.46, 0, 523.25,
+    440.0, 0, 349.23, 0, 392.0, 0, 349.23, 0,
+  ];
+  const melody = playMelodyLoop(ctx, destination, melodyNotes, 0.5, MELODY_GAIN, 'triangle');
+  stops.push(melody.stop);
 
-  const lfoGain = ctx.createGain();
-  lfoGain.gain.value = 0.08;
+  // Подложка: Fmaj7 (F3, A3, C4, E4)
+  const padFreqs = [174.61, 220.0, 261.63, 329.63];
+  const padOscs: OscillatorNode[] = [];
+  const padGain = ctx.createGain();
+  padGain.gain.value = PAD_GAIN;
+  padGain.connect(destination);
 
-  lfo.connect(lfoGain);
-  lfoGain.connect(droneGain.gain);
-
-  drone.connect(droneGain);
-  droneGain.connect(destination);
-
-  drone.start();
-  lfo.start();
-
-  const intervalId = setInterval(() => {
-    const now = ctx.currentTime;
-    const note = ctx.createOscillator();
-    note.type = 'sine';
-    note.frequency.value = 220;
-
-    const noteGain = ctx.createGain();
-    noteGain.gain.setValueAtTime(0, now);
-    noteGain.gain.linearRampToValueAtTime(0.12, now + 0.05);
-    noteGain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
-
-    note.connect(noteGain);
-    noteGain.connect(destination);
-
-    note.start(now);
-    note.stop(now + 1.5);
-  }, 4000);
+  for (const freq of padFreqs) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc.connect(padGain);
+    osc.start();
+    padOscs.push(osc);
+  }
 
   return {
     stop: () => {
-      clearInterval(intervalId);
-      drone.stop();
-      lfo.stop();
+      stops.forEach((s) => s());
+      padOscs.forEach((o) => { try { o.stop(); } catch { /* noop */ } });
     },
   };
 };
 
 /**
- * Train ambient — brown noise через lowpass + LFO для "дыхания".
+ * Train ambient — мелодия поезда.
+ * Детективная, ритмичная, в стиле нуар.
+ * Тональность: A-минор. Ритмический остинато.
  */
 const trainAmbient: PresetFactory = (ctx, destination): PresetInstance => {
-  const noiseBuffer = getBrownNoiseBuffer(ctx);
-  const noise = ctx.createBufferSource();
-  noise.buffer = noiseBuffer;
-  noise.loop = true;
+  const stops: (() => void)[] = [];
 
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.value = 200;
-  filter.Q.value = 1;
+  // Бас: ритмичный остинато A1, E2
+  const bassNotes = [55.0, 55.0, 0, 82.41, 55.0, 55.0, 0, 82.41];
+  const bass = playMelodyLoop(ctx, destination, bassNotes, 0.4, BASS_GAIN, 'sine');
+  stops.push(bass.stop);
 
-  const gain = ctx.createGain();
-  gain.gain.value = AMBIENT_GAIN;
+  // Мелодия: загадочная фраза в A-миноре
+  const melodyNotes = [
+    220.0, 0, 261.63, 220.0, 0, 196.0, 0, 220.0,
+    0, 261.63, 0, 329.63, 261.63, 0, 220.0, 0,
+  ]; // A3, -, C4, A3, -, G3, -, A3, -, C4, -, E4, C4, -, A3, -
+  const melody = playMelodyLoop(ctx, destination, melodyNotes, 0.35, MELODY_GAIN, 'triangle');
+  stops.push(melody.stop);
 
-  // LFO для "дыхания" рокота
-  const lfo = ctx.createOscillator();
-  lfo.type = 'sine';
-  lfo.frequency.value = 0.15;
+  // Подложка: Am (A2, C3, E3)
+  const padFreqs = [110.0, 130.81, 164.81];
+  const padOscs: OscillatorNode[] = [];
+  const padGain = ctx.createGain();
+  padGain.gain.value = PAD_GAIN * 0.8;
+  padGain.connect(destination);
 
-  const lfoGain = ctx.createGain();
-  lfoGain.gain.value = 0.2;
-
-  lfo.connect(lfoGain);
-  lfoGain.connect(filter.frequency);
-
-  noise.connect(filter);
-  filter.connect(gain);
-  gain.connect(destination);
-
-  noise.start();
-  lfo.start();
+  for (const freq of padFreqs) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc.connect(padGain);
+    osc.start();
+    padOscs.push(osc);
+  }
 
   return {
     stop: () => {
-      noise.stop();
-      lfo.stop();
+      stops.forEach((s) => s());
+      padOscs.forEach((o) => { try { o.stop(); } catch { /* noop */ } });
     },
   };
 };
 
 /**
- * Night corridor — brown noise через низкий lowpass.
+ * Night corridor — тревожная ночная мелодия.
+ * Тональность: Eb-минор. Медленная, с диссонансами.
  */
 const nightCorridor: PresetFactory = (ctx, destination): PresetInstance => {
-  const noiseBuffer = getBrownNoiseBuffer(ctx);
-  const noise = ctx.createBufferSource();
-  noise.buffer = noiseBuffer;
-  noise.loop = true;
+  const stops: (() => void)[] = [];
 
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.value = 120;
+  // Бас: низкий, тревожный Eb1, Bb1
+  const bassNotes = [77.78, 0, 0, 116.54, 77.78, 0, 0, 116.54];
+  const bass = playMelodyLoop(ctx, destination, bassNotes, 1.5, BASS_GAIN, 'sine');
+  stops.push(bass.stop);
 
-  const gain = ctx.createGain();
-  gain.gain.value = 0.3;
+  // Мелодия: редкие, тревожные ноты
+  const melodyNotes = [
+    311.13, 0, 0, 0, 369.99, 0, 0, 0,
+    0, 0, 233.08, 0, 0, 0, 311.13, 0,
+  ]; // Eb4, -, -, -, F#4, -, -, -, -, -, Bb3, -, -, -, Eb4, -
+  const melody = playMelodyLoop(ctx, destination, melodyNotes, 0.8, MELODY_GAIN * 0.7, 'sine');
+  stops.push(melody.stop);
 
-  noise.connect(filter);
-  filter.connect(gain);
-  gain.connect(destination);
+  // Подложка: Ebm (Eb3, Gb3, Bb3) — мрачная
+  const padFreqs = [155.56, 185.0, 233.08];
+  const padOscs: OscillatorNode[] = [];
+  const padGain = ctx.createGain();
+  padGain.gain.value = PAD_GAIN * 0.6;
+  padGain.connect(destination);
 
-  noise.start();
+  for (const freq of padFreqs) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc.connect(padGain);
+    osc.start();
+    padOscs.push(osc);
+  }
 
   return {
     stop: () => {
-      noise.stop();
+      stops.forEach((s) => s());
+      padOscs.forEach((o) => { try { o.stop(); } catch { /* noop */ } });
     },
   };
 };
 
 /**
- * Tension — низкий пульс + высокочастотное "звено в ушах".
+ * Tension — напряжённая, пульсирующая мелодия.
+ * Тональность: C-минор. Нарастающее напряжение.
  */
 const tension: PresetFactory = (ctx, destination): PresetInstance => {
-  // Низкий пульс (сердцебиение)
-  const pulse = ctx.createOscillator();
-  pulse.type = 'sine';
-  pulse.frequency.value = 60;
+  const stops: (() => void)[] = [];
 
-  const pulseGain = ctx.createGain();
-  pulseGain.gain.value = TENSION_GAIN;
+  // Бас: пульсирующий C2, G2
+  const bassNotes = [65.41, 65.41, 0, 98.0, 65.41, 65.41, 0, 98.0];
+  const bass = playMelodyLoop(ctx, destination, bassNotes, 0.35, BASS_GAIN * 1.2, 'sine');
+  stops.push(bass.stop);
 
-  // LFO для пульсации
-  const lfo = ctx.createOscillator();
-  lfo.type = 'sine';
-  lfo.frequency.value = 1.2;
+  // Мелодия: тревожная, с полутонами
+  const melodyNotes = [
+    261.63, 277.18, 0, 311.13, 0, 261.63, 246.94, 0,
+    261.63, 0, 311.13, 329.63, 0, 311.13, 277.18, 0,
+  ];
+  const melody = playMelodyLoop(ctx, destination, melodyNotes, 0.3, MELODY_GAIN, 'sawtooth');
+  stops.push(melody.stop);
 
-  const lfoGain = ctx.createGain();
-  lfoGain.gain.value = 0.2;
+  // Подложка: Cm (C3, Eb3, G3)
+  const padFreqs = [130.81, 155.56, 196.0];
+  const padOscs: OscillatorNode[] = [];
+  const padGain = ctx.createGain();
+  padGain.gain.value = PAD_GAIN;
+  padGain.connect(destination);
 
-  lfo.connect(lfoGain);
-  lfoGain.connect(pulseGain.gain);
-
-  pulse.connect(pulseGain);
-  pulseGain.connect(destination);
-
-  pulse.start();
-  lfo.start();
-
-  // Высокочастотное "звено в ушах"
-  const noiseBuffer = getBrownNoiseBuffer(ctx);
-  const noise = ctx.createBufferSource();
-  noise.buffer = noiseBuffer;
-  noise.loop = true;
-
-  const highpass = ctx.createBiquadFilter();
-  highpass.type = 'highpass';
-  highpass.frequency.value = 4000;
-
-  const noiseGain = ctx.createGain();
-  noiseGain.gain.value = 0.08;
-
-  noise.connect(highpass);
-  highpass.connect(noiseGain);
-  noiseGain.connect(destination);
-
-  noise.start();
+  for (const freq of padFreqs) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc.connect(padGain);
+    osc.start();
+    padOscs.push(osc);
+  }
 
   return {
     stop: () => {
-      pulse.stop();
-      lfo.stop();
-      noise.stop();
+      stops.forEach((s) => s());
+      padOscs.forEach((o) => { try { o.stop(); } catch { /* noop */ } });
     },
   };
 };
 
 /**
- * Death sting — диссонансный аккорд с огибающей.
+ * Death sting — резкий диссонансный аккорд.
+ * Тритон + малая секунда для максимального дискомфорта.
  */
 const deathSting: PresetFactory = (ctx, destination): PresetInstance => {
   const now = ctx.currentTime;
 
-  // Три осциллятора: тритон + малая секунда
-  const osc1 = ctx.createOscillator();
-  osc1.type = 'sine';
-  osc1.frequency.value = 220;
-
-  const osc2 = ctx.createOscillator();
-  osc2.type = 'sine';
-  osc2.frequency.value = 233;
-
-  const osc3 = ctx.createOscillator();
-  osc3.type = 'sine';
-  osc3.frequency.value = 311;
+  // Диссонанс: A3, Bb3, Eb4 (тритон + малая секунда)
+  const freqs = [220, 233.08, 311.13];
+  const oscs: OscillatorNode[] = [];
 
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(STING_GAIN, now + 0.01); // атака 10 мс
+  gain.gain.linearRampToValueAtTime(STING_GAIN, now + 0.01);
   gain.gain.exponentialRampToValueAtTime(0.001, now + STING_DURATION_SEC);
 
-  osc1.connect(gain);
-  osc2.connect(gain);
-  osc3.connect(gain);
+  for (const freq of freqs) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    osc.start(now);
+    osc.stop(now + STING_DURATION_SEC);
+    oscs.push(osc);
+  }
+
   gain.connect(destination);
-
-  osc1.start(now);
-  osc2.start(now);
-  osc3.start(now);
-
-  osc1.stop(now + STING_DURATION_SEC);
-  osc2.stop(now + STING_DURATION_SEC);
-  osc3.stop(now + STING_DURATION_SEC);
 
   return {
     stop: () => {
-      try {
-        osc1.stop();
-        osc2.stop();
-        osc3.stop();
-      } catch {
-        // Уже остановлены
-      }
+      oscs.forEach((o) => { try { o.stop(); } catch { /* noop */ } });
     },
   };
 };
 
 /**
- * Accusation theme — минорное трезвучие с медленной атакой.
+ * Accusation theme — драматичная мелодия обвинения.
+ * Тональность: F-минор. Восходящая, с нарастанием.
  */
 const accusationTheme: PresetFactory = (ctx, destination): PresetInstance => {
-  const now = ctx.currentTime;
+  const stops: (() => void)[] = [];
 
-  // F3, A3, C4 — минорное трезвучие
-  const osc1 = ctx.createOscillator();
-  osc1.type = 'sine';
-  osc1.frequency.value = 174.61;
+  // Бас: F2, C3 — уверенный, тяжёлый
+  const bassNotes = [87.31, 87.31, 0, 130.81, 87.31, 87.31, 0, 130.81];
+  const bass = playMelodyLoop(ctx, destination, bassNotes, 0.5, BASS_GAIN * 1.2, 'sine');
+  stops.push(bass.stop);
 
-  const osc2 = ctx.createOscillator();
-  osc2.type = 'sine';
-  osc2.frequency.value = 220;
+  // Мелодия: драматичная, восходящая
+  const melodyNotes = [
+    349.23, 0, 415.30, 0, 523.25, 0, 622.25, 0,
+    698.46, 0, 622.25, 523.25, 0, 415.30, 349.23, 0,
+  ]; // F4, -, Ab4, -, C5, -, Eb5, -, F5, -, Eb5, C5, -, Ab4, F4, -
+  const melody = playMelodyLoop(ctx, destination, melodyNotes, 0.4, MELODY_GAIN, 'triangle');
+  stops.push(melody.stop);
 
-  const osc3 = ctx.createOscillator();
-  osc3.type = 'sine';
-  osc3.frequency.value = 261.63;
+  // Подложка: Fm (F3, Ab3, C4)
+  const padFreqs = [174.61, 207.65, 261.63];
+  const padOscs: OscillatorNode[] = [];
+  const padGain = ctx.createGain();
+  padGain.gain.value = PAD_GAIN;
+  padGain.connect(destination);
 
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(ORGAN_GAIN, now + 2); // атака 2 с
-
-  osc1.connect(gain);
-  osc2.connect(gain);
-  osc3.connect(gain);
-  gain.connect(destination);
-
-  osc1.start(now);
-  osc2.start(now);
-  osc3.start(now);
+  for (const freq of padFreqs) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc.connect(padGain);
+    osc.start();
+    padOscs.push(osc);
+  }
 
   return {
     stop: () => {
-      osc1.stop();
-      osc2.stop();
-      osc3.stop();
+      stops.forEach((s) => s());
+      padOscs.forEach((o) => { try { o.stop(); } catch { /* noop */ } });
     },
   };
 };
 
 /**
- * Finale theme — ре-минор с медленной атакой.
+ * Finale theme — разрешающая, мажорная мелодия.
+ * Тональность: D-мажор. Светлая, с чувством завершения.
  */
 const finaleTheme: PresetFactory = (ctx, destination): PresetInstance => {
-  const now = ctx.currentTime;
+  const stops: (() => void)[] = [];
 
-  // D3, F3, A3 — ре-минор
-  const osc1 = ctx.createOscillator();
-  osc1.type = 'sine';
-  osc1.frequency.value = 146.83;
+  // Бас: D2, A2 — тёплый, уверенный
+  const bassNotes = [73.42, 0, 110.0, 0, 73.42, 0, 110.0, 0];
+  const bass = playMelodyLoop(ctx, destination, bassNotes, 0.8, BASS_GAIN, 'sine');
+  stops.push(bass.stop);
 
-  const osc2 = ctx.createOscillator();
-  osc2.type = 'sine';
-  osc2.frequency.value = 174.61;
+  // Мелодия: светлая, мажорная
+  const melodyNotes = [
+    293.66, 0, 369.99, 0, 440.0, 0, 587.33, 0,
+    440.0, 0, 369.99, 0, 293.66, 0, 329.63, 0,
+  ]; // D4, -, F#4, -, A4, -, D5, -, A4, -, F#4, -, D4, -, E4, -
+  const melody = playMelodyLoop(ctx, destination, melodyNotes, 0.5, MELODY_GAIN, 'triangle');
+  stops.push(melody.stop);
 
-  const osc3 = ctx.createOscillator();
-  osc3.type = 'sine';
-  osc3.frequency.value = 220;
+  // Подложка: Dmaj7 (D3, F#3, A3, C#4)
+  const padFreqs = [146.83, 185.0, 220.0, 277.18];
+  const padOscs: OscillatorNode[] = [];
+  const padGain = ctx.createGain();
+  padGain.gain.value = PAD_GAIN;
+  padGain.connect(destination);
 
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(0.5, now + 3); // атака 3 с
-
-  osc1.connect(gain);
-  osc2.connect(gain);
-  osc3.connect(gain);
-  gain.connect(destination);
-
-  osc1.start(now);
-  osc2.start(now);
-  osc3.start(now);
+  for (const freq of padFreqs) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc.connect(padGain);
+    osc.start();
+    padOscs.push(osc);
+  }
 
   return {
     stop: () => {
-      osc1.stop();
-      osc2.stop();
-      osc3.stop();
+      stops.forEach((s) => s());
+      padOscs.forEach((o) => { try { o.stop(); } catch { /* noop */ } });
     },
   };
 };

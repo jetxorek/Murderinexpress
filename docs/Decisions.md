@@ -11,7 +11,16 @@
 - Звук синтезируется процедурно в браузере через Web Audio API (`src/services/audio/*`).
 - Никаких mp3/webp-аудиофайлов в MVP. `ASSETS.audio` (пути `.mp3`) остаётся зарезервированным для будущего, но не используется.
 - Публичное API — `audio.playPreset(id)` (см. `types.ts`).
-- Пресеты: `silence`, `menu_theme`, `summary_theme`, `train_ambient`, `night_corridor`, `tension`, `death_sting`, `accusation_theme`, `finale_theme`.
+- Все пресеты — **процедурные мелодии** (не шумы), созданные из осцилляторов с арпеджио и аккордовыми подложками:
+  - `silence` — тишина
+  - `menu_theme` — элегантная мелодия в D-миноре (стиль 1930-х)
+  - `summary_theme` — задумчивая мелодия в F-мажоре
+  - `train_ambient` — детективная мелодия в A-миноре (нуар)
+  - `night_corridor` — тревожная мелодия в Eb-миноре
+  - `tension` — напряжённая пульсирующая мелодия в C-миноре
+  - `death_sting` — резкий диссонансный аккорд (стиingers)
+  - `accusation_theme` — драматичная восходящая мелодия в F-миноре
+  - `finale_theme` — светлая разрешающая мелодия в D-мажоре
 - Маппинг «экран/сцена → пресет» — `sceneMap.ts`, функция `getPresetForScreen(screen, sceneId)`.
 - `AudioContext` создаётся только по user gesture (autoplay policy): `audio.init()` вызывается из `AudioController` на первом `pointerdown`/`keydown`.
 - Громкость и mute хранятся в `localStorage` (`mfe_audio_volume`, `mfe_audio_muted`), не в `SaveState`.
