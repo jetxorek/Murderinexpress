@@ -366,7 +366,14 @@ function ResultScreen() {
         Обвиняемых: {lastResult.accusedCount} | Сильных: {lastResult.strongCount}
       </div>
       {lastResult.outcome === 'full' ? (
-        <button className="menu__btn" onClick={() => setScreen('finale')}>Далее →</button>
+        <button className="menu__btn" onClick={() => {
+          useGameStore.setState({
+            currentSceneId: 'ch4_04_moral_choice',
+            currentNodeId: 'n1',
+            screen: 'scene',
+            textRevealed: false,
+          });
+        }}>Далее →</button>
       ) : (
         <>
           <button className="menu__btn" onClick={() => setScreen('scene')}>Вернуться</button>
@@ -378,7 +385,7 @@ function ResultScreen() {
 }
 
 function FinaleScreen() {
-  const { finaleChoice, setFinaleChoice, newGame } = useGameStore();
+  const { finaleChoice, setFinaleChoice, newGame, setScreen } = useGameStore();
 
   const epilogues: Record<string, string> = {
     law: 'Семеро арестованы. Пирогов получил орден. Но по ночам он видит девочку с двумя косичками и серьёзным лицом. И понимает: закон есть, а справедливости нет.',
@@ -409,15 +416,20 @@ function FinaleScreen() {
       ) : (
         <>
           <h2 className="result__title result__title--full">
-            {finaleChoice === 'law' ? 'Закон' : finaleChoice === 'justice' ? 'Справедливость' : 'Молчание'}
+            Концовка: {finaleChoice === 'law' ? 'Закон' : finaleChoice === 'justice' ? 'Справедливость' : 'Молчание'}
           </h2>
           <p className="finale__epilogue">{epilogues[finaleChoice]}</p>
           <p className="finale__epilogue" style={{ marginTop: '1rem', opacity: 0.6 }}>
             Снег шёл ровно, без ветра.
           </p>
-          <button className="menu__btn" onClick={newGame} style={{ marginTop: '2rem' }}>
-            На главное меню
-          </button>
+          <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button className="menu__btn" onClick={newGame}>
+              Начать заново
+            </button>
+            <button className="menu__btn" onClick={() => setScreen('menu')}>
+              Главное меню
+            </button>
+          </div>
         </>
       )}
     </div>
@@ -429,10 +441,10 @@ function ChapterEndScreen() {
   
   const isChapter1End = currentSceneId === 'ch1_05_morning';
   const isChapter2End = currentSceneId === 'ch2_05_police_announce';
+  const isChapter3End = currentSceneId === 'ch3_05_storm';
   
   const handleContinue = () => {
     if (isChapter1End) {
-      // Переход к главе 2 — меняем сцену и экран
       useGameStore.setState({
         currentSceneId: 'ch2_01_crime_scene',
         currentNodeId: 'n1',
@@ -441,38 +453,79 @@ function ChapterEndScreen() {
         textRevealed: false,
       });
     } else if (isChapter2End) {
-      // Переход к обвинению
-      setScreen('accusation');
+      useGameStore.setState({
+        currentSceneId: 'ch3_01_late_interviews',
+        currentNodeId: 'n1',
+        sceneSlotsLeft: 6,
+        screen: 'scene',
+        textRevealed: false,
+      });
+    } else if (isChapter3End) {
+      useGameStore.setState({
+        currentSceneId: 'ch4_01_police_arrival',
+        currentNodeId: 'n1',
+        sceneSlotsLeft: 4,
+        screen: 'scene',
+        textRevealed: false,
+      });
     }
+  };
+  
+  const getChapterTitle = () => {
+    if (isChapter1End) return 'Конец Главы 1';
+    if (isChapter2End) return 'Конец Главы 2';
+    if (isChapter3End) return 'Конец Главы 3';
+    return 'Конец главы';
+  };
+  
+  const getChapterText = () => {
+    if (isChapter1End) {
+      return (
+        <>
+          Тело Степана Разумова найдено. Семь ножевых ранений. У всех наготове алиби.
+          <br /><br />
+          Пирогов поправил усы и посмотрел на снег за окном. Расследование только начинается.
+        </>
+      );
+    }
+    if (isChapter2End) {
+      return (
+        <>
+          Полиция прибудет через несколько часов. Время идёт.
+          <br /><br />
+          Пирогов собрал первые улики. Но впереди — поздние допросы, новые противоречия, рискованные решения.
+        </>
+      );
+    }
+    if (isChapter3End) {
+      return (
+        <>
+          Метель усилилась. Поезд стоит. Полиция задерживается.
+          <br /><br />
+          Пирогов собрал все улики, все противоречия, все психологические портреты. Пора называть имена.
+        </>
+      );
+    }
+    return null;
+  };
+  
+  const getButtonText = () => {
+    if (isChapter1End) return 'Продолжить расследование →';
+    if (isChapter2End) return 'Начать поздние допросы →';
+    if (isChapter3End) return 'Перейти к обвинению →';
+    return 'Продолжить';
   };
   
   return (
     <div className="chapter-end">
       <SnowParticles />
-      <h2 className="chapter-end__title">
-        {isChapter1End ? 'Конец Главы 1' : isChapter2End ? 'Конец Главы 2' : 'Конец главы'}
-      </h2>
-      <p className="chapter-end__text">
-        {isChapter1End && (
-          <>
-            Тело Степана Разумова найдено. Семь ножевых ранений. У всех наготове алиби.
-            <br /><br />
-            Пирогов поправил усы и посмотрел на снег за окном. Расследование только начинается.
-          </>
-        )}
-        {isChapter2End && (
-          <>
-            Полиция прибудет через несколько часов. Время идёт.
-            <br /><br />
-            Пирогов собрал все улики, все противоречия, все психологические портреты. Пора называть имена.
-          </>
-        )}
-      </p>
+      <h2 className="chapter-end__title">{getChapterTitle()}</h2>
+      <p className="chapter-end__text">{getChapterText()}</p>
       <p style={{ fontSize: '0.8rem', color: 'var(--snow)', opacity: 0.5, marginBottom: '2rem' }}>
         Заметок собрано: {notes.length}
       </p>
       <button className="menu__btn" onClick={handleContinue}>
-        {isChapter1End ? 'Продолжить расследование →' : 'Перейти к обвинению'}
+        {getButtonText()}
       </button>
       <button className="menu__btn" onClick={() => setScreen('scene')} style={{ marginTop: 8 }}>
         Вернуться

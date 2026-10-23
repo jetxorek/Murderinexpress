@@ -180,6 +180,10 @@ export const useGameStore = create<GameState>((set, get) => ({
             set({ screen: 'accusation' });
             return;
           }
+          if (nextSceneId === 'finale') {
+            set({ screen: 'finale' });
+            return;
+          }
           const nextScene = getScene(nextSceneId);
           if (nextScene) {
             const newSlots = state.sceneSlotsLeft - (nextScene.slotCost ?? 1);
