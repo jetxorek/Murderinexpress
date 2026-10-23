@@ -4,6 +4,7 @@ import { getScene } from './data/scenes';
 import { CHARACTERS, SUSPECT_IDS } from './data/characters';
 import { NoteSpan } from './schemas/note';
 import { NoteCategory } from './data/truthTable';
+import { Icon } from './components/common/Icon';
 import './index.css';
 
 const CHAR_EMOJIS: Record<string, string> = {
@@ -113,7 +114,7 @@ function SceneScreen() {
 
       <div className="scene__header">
         <span className="scene__title">{scene.title}</span>
-        <span className="scene__slots">Слоты: {sceneSlotsLeft} | 🔍 {suspicion}%</span>
+        <span className="scene__slots">Слоты: {sceneSlotsLeft} | <Icon name="detective" size={14} /> {suspicion}%</span>
       </div>
 
       <div className="scene__content">
@@ -161,13 +162,13 @@ function SceneScreen() {
 
       <div className="bottom-buttons">
         <button className="bottom-btn" onClick={() => setScreen('notebook')}>
-          📓 Блокнот {notes.length > 0 && <span className="bottom-btn__badge">{notes.length}</span>}
+          <Icon name="notebook" size={16} /> Блокнот {notes.length > 0 && <span className="bottom-btn__badge">{notes.length}</span>}
         </button>
         <button className="bottom-btn" onClick={() => setScreen('accusation')} style={{ background: 'rgba(184,147,90,0.2)', borderColor: 'var(--brass)' }}>
-          🔍 Указать на убийцу
+          <Icon name="detective" size={16} /> Указать на убийцу
         </button>
         <button className="bottom-btn" onClick={() => setScreen('menu')}>
-          ☰ Меню
+          <Icon name="menu" size={16} /> Меню
         </button>
       </div>
 
@@ -201,8 +202,8 @@ function NotebookOverlay() {
   return (
     <div className="overlay">
       <div className="overlay__header">
-        <span className="overlay__title">📓 Блокнот</span>
-        <button className="overlay__close" onClick={() => setScreen('scene')}>✕</button>
+        <span className="overlay__title"><Icon name="notebook" size={18} /> Блокнот</span>
+        <button className="overlay__close" onClick={() => setScreen('scene')}><Icon name="close" size={16} /></button>
       </div>
       <div className="overlay__body">
         <div className="note-filters">
@@ -255,10 +256,10 @@ function AccusationScreen() {
   return (
     <div className="overlay">
       <div className="overlay__header">
-        <span className="overlay__title">⚖️ Обвинение</span>
+        <span className="overlay__title"><Icon name="accuse" size={18} /> Обвинение</span>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="overlay__close" onClick={() => setScreen('notebook')} title="Открыть блокнот">📓</button>
-          <button className="overlay__close" onClick={() => setScreen('scene')}>✕</button>
+          <button className="overlay__close" onClick={() => setScreen('notebook')} title="Открыть блокнот"><Icon name="notebook" size={16} /></button>
+          <button className="overlay__close" onClick={() => setScreen('scene')}><Icon name="close" size={16} /></button>
         </div>
       </div>
       <div className="overlay__body" style={{ flex: 1 }}>

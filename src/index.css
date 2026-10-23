@@ -776,3 +776,15 @@ button {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(184,147,90,0.3); border-radius: 2px; }
+
+/* ─── ICONS ─── */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25em;
+  height: 1.25em;
+  color: inherit;
+  stroke: currentColor;
+  flex-shrink: 0;
+}
