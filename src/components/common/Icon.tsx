@@ -7,6 +7,15 @@ import {
   Snowflake,
   Brain,
   Eye,
+  Award,
+  Diamond,
+  Crown,
+  Key,
+  FileText,
+  Sparkles,
+  BookMarked,
+  Skull,
+  AlertTriangle,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -18,7 +27,16 @@ export type IconName =
   | 'detective'
   | 'hint-grey'
   | 'hint-memory'
-  | 'hint-snow';
+  | 'hint-snow'
+  | 'char_01'
+  | 'char_02'
+  | 'char_03'
+  | 'char_04'
+  | 'char_05'
+  | 'char_06'
+  | 'char_07'
+  | 'victim'
+  | 'warning';
 
 const ICON_MAP: Record<IconName, LucideIcon> = {
   notebook: BookOpen,
@@ -29,6 +47,15 @@ const ICON_MAP: Record<IconName, LucideIcon> = {
   'hint-grey': Brain,
   'hint-memory': Eye,
   'hint-snow': Snowflake,
+  char_01: Award,
+  char_02: Diamond,
+  char_03: Crown,
+  char_04: Key,
+  char_05: FileText,
+  char_06: Sparkles,
+  char_07: BookMarked,
+  victim: Skull,
+  warning: AlertTriangle,
 };
 
 interface IconProps {

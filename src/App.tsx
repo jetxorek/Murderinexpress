@@ -7,9 +7,9 @@ import { NoteCategory } from './data/truthTable';
 import { Icon } from './components/common/Icon';
 import './index.css';
 
-const CHAR_EMOJIS: Record<string, string> = {
-  char_01: '🎖️', char_02: '💎', char_03: '♛', char_04: '🔑',
-  char_05: '📋', char_06: '🧹', char_07: '📖', detective: '🔍', victim: '💀',
+const CHAR_ICONS: Record<string, 'char_01' | 'char_02' | 'char_03' | 'char_04' | 'char_05' | 'char_06' | 'char_07' | 'detective' | 'victim'> = {
+  char_01: 'char_01', char_02: 'char_02', char_03: 'char_03', char_04: 'char_04',
+  char_05: 'char_05', char_06: 'char_06', char_07: 'char_07', detective: 'detective', victim: 'victim',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -120,7 +120,9 @@ function SceneScreen() {
       <div className="scene__content">
         {speaker && (
           <div className="scene__speaker">
-            <div className="scene__speaker-avatar">{CHAR_EMOJIS[speaker.id] || '?'}</div>
+            <div className="scene__speaker-avatar">
+              {CHAR_ICONS[speaker.id] ? <Icon name={CHAR_ICONS[speaker.id]} size={24} /> : '?'}
+            </div>
             <div>
               <div className="scene__speaker-name">{speaker.name}</div>
               <div className="scene__speaker-role">{speaker.roleShort}</div>
@@ -145,7 +147,7 @@ function SceneScreen() {
                   <span className="choice-btn__tone">[{TONE_LABELS[opt.tone]}]</span>
                 )}
                 {opt.text}
-                {opt.risk === 'high' && ' ⚠️'}
+                {opt.risk === 'high' && <Icon name="warning" size={14} />}
               </button>
             ))}
           </div>
@@ -181,7 +183,9 @@ function SceneScreen() {
               className={`char-bar__item ${accusedIds.includes(id) ? 'char-bar__item--accused' : ''}`}
               onClick={() => toggleAccused(id)}
             >
-              <div className="char-bar__avatar">{CHAR_EMOJIS[id]}</div>
+              <div className="char-bar__avatar">
+                <Icon name={CHAR_ICONS[id]} size={20} />
+              </div>
               <div className="char-bar__name">{ch.name.split(' ')[0]}</div>
               <div className="char-bar__role">{ch.roleShort}</div>
             </div>
@@ -276,7 +280,7 @@ function AccusationScreen() {
                   style={{ textAlign: 'left' }}
                 >
                   <div className="note-card__header">
-                    <span style={{ fontSize: '1.2rem' }}>{CHAR_EMOJIS[id]}</span>
+                    <Icon name={CHAR_ICONS[id]} size={24} />
                     <span style={{ fontSize: '0.9rem', color: 'var(--paper)', fontWeight: 'bold' }}>
                       {ch.name}
                     </span>
