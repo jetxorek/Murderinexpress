@@ -64,6 +64,17 @@ export const ch2_02_conductor_first: Scene = {
         truthKey: 'claims_compartment_vs_keys_missing_overnight',
       }],
     },
+    n_ch2_02_05: {
+      type: 'narration',
+      text: '— Кто-то видел мужчину, — сказал Михайлов, не поднимая глаз. — Ночью. В коридоре. В форме.\n\n— Кто видел?\n\n— Я... не помню. Кто-то из пассажиров. Не могу сказать точно.\n\nПирогов записал. «Кто-то видел» — это не показание. Это слух, пущенный намеренно. Никто не видел мужчину, потому что мужчины не было.',
+      noteSpans: [{
+        id: 'n_ch2_02_05',
+        text: '«Кто-то видел мужчину» — слух, а не показание',
+        category: 'contradiction',
+        target: 'char_04',
+        truthKey: 'witness_saw_man_is_false',
+      }],
+    },
     n6: {
       type: 'end',
       nextScene: 'ch2_03_breakfast',

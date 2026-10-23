@@ -36,6 +36,10 @@ export const TRUTH_TABLE: TruthTable = {
       open_window_is_staged_escape: 'true',
       red_kimono_is_plant: 'true',
       clock_manipulated: 'true',
+      threat_letter_is_fabricated: 'true',
+      second_conductor_is_disguise: 'true',
+      knife_in_sponge_bag_is_plant: 'true',
+      two_kinds_of_matches: 'true',
     },
   },
   char_01: {
@@ -144,6 +148,7 @@ export const TRUTH_TABLE: TruthTable = {
       claims_compartment_vs_keys_missing_overnight: 'true',
       claims_stranger_vs_served_arsenyev_family: 'true',
       button_is_planted: 'true',
+      witness_saw_man_is_false: 'true',
     },
   },
   char_05: {
@@ -171,6 +176,7 @@ export const TRUTH_TABLE: TruthTable = {
     contradiction: {
       claims_papers_vs_nothing_found: 'true',
       claims_stranger_vs_father_was_family_lawyer: 'true',
+      french_language_is_misdirection: 'true',
     },
   },
   char_06: {
