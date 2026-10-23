@@ -4,7 +4,7 @@
  */
 
 /** Мастер-громкость по умолчанию (0..1) */
-const MASTER_VOLUME = 0.5;
+const MASTER_VOLUME = 0.8;
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;

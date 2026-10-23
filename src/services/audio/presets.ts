@@ -9,16 +9,16 @@ import { getBrownNoiseBuffer } from './noise';
 // ─── Общие константы ───────────────────────────────────────────────────────
 
 /** Громкость ambient-звуков (0..1) */
-const AMBIENT_GAIN = 0.15;
+const AMBIENT_GAIN = 0.5;
 
 /** Громкость tension-звуков (0..1) */
-const TENSION_GAIN = 0.2;
+const TENSION_GAIN = 0.6;
 
 /** Громкость sting-звуков (0..1) */
-const STING_GAIN = 0.3;
+const STING_GAIN = 0.8;
 
 /** Громкость organ-подобных звуков (0..1) */
-const ORGAN_GAIN = 0.18;
+const ORGAN_GAIN = 0.5;
 
 /** Длительность fade для silence (сек) */
 const SILENCE_FADE_SEC = 0.4;
@@ -47,7 +47,7 @@ const menuTheme: PresetFactory = (ctx, destination): PresetInstance => {
   drone.frequency.value = 55;
 
   const droneGain = ctx.createGain();
-  droneGain.gain.value = 0.04;
+  droneGain.gain.value = 0.15;
 
   // LFO для пульсации
   const lfo = ctx.createOscillator();
@@ -55,7 +55,7 @@ const menuTheme: PresetFactory = (ctx, destination): PresetInstance => {
   lfo.frequency.value = 0.1;
 
   const lfoGain = ctx.createGain();
-  lfoGain.gain.value = 0.02;
+  lfoGain.gain.value = 0.08;
 
   lfo.connect(lfoGain);
   lfoGain.connect(droneGain.gain);
@@ -75,7 +75,7 @@ const menuTheme: PresetFactory = (ctx, destination): PresetInstance => {
 
     const noteGain = ctx.createGain();
     noteGain.gain.setValueAtTime(0, now);
-    noteGain.gain.linearRampToValueAtTime(0.03, now + 0.05); // атака 50 мс
+    noteGain.gain.linearRampToValueAtTime(0.12, now + 0.05); // атака 50 мс
     noteGain.gain.exponentialRampToValueAtTime(0.001, now + 1.5); // спад 1.5 с
 
     note.connect(noteGain);
@@ -103,14 +103,14 @@ const summaryTheme: PresetFactory = (ctx, destination): PresetInstance => {
   drone.frequency.value = 65;
 
   const droneGain = ctx.createGain();
-  droneGain.gain.value = 0.04;
+  droneGain.gain.value = 0.15;
 
   const lfo = ctx.createOscillator();
   lfo.type = 'sine';
   lfo.frequency.value = 0.15;
 
   const lfoGain = ctx.createGain();
-  lfoGain.gain.value = 0.02;
+  lfoGain.gain.value = 0.08;
 
   lfo.connect(lfoGain);
   lfoGain.connect(droneGain.gain);
@@ -129,7 +129,7 @@ const summaryTheme: PresetFactory = (ctx, destination): PresetInstance => {
 
     const noteGain = ctx.createGain();
     noteGain.gain.setValueAtTime(0, now);
-    noteGain.gain.linearRampToValueAtTime(0.03, now + 0.05);
+    noteGain.gain.linearRampToValueAtTime(0.12, now + 0.05);
     noteGain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
 
     note.connect(noteGain);
@@ -171,7 +171,7 @@ const trainAmbient: PresetFactory = (ctx, destination): PresetInstance => {
   lfo.frequency.value = 0.15;
 
   const lfoGain = ctx.createGain();
-  lfoGain.gain.value = 0.05;
+  lfoGain.gain.value = 0.2;
 
   lfo.connect(lfoGain);
   lfoGain.connect(filter.frequency);
@@ -205,7 +205,7 @@ const nightCorridor: PresetFactory = (ctx, destination): PresetInstance => {
   filter.frequency.value = 120;
 
   const gain = ctx.createGain();
-  gain.gain.value = 0.08;
+  gain.gain.value = 0.3;
 
   noise.connect(filter);
   filter.connect(gain);
@@ -238,7 +238,7 @@ const tension: PresetFactory = (ctx, destination): PresetInstance => {
   lfo.frequency.value = 1.2;
 
   const lfoGain = ctx.createGain();
-  lfoGain.gain.value = 0.05;
+  lfoGain.gain.value = 0.2;
 
   lfo.connect(lfoGain);
   lfoGain.connect(pulseGain.gain);
@@ -260,7 +260,7 @@ const tension: PresetFactory = (ctx, destination): PresetInstance => {
   highpass.frequency.value = 4000;
 
   const noiseGain = ctx.createGain();
-  noiseGain.gain.value = 0.02;
+  noiseGain.gain.value = 0.08;
 
   noise.connect(highpass);
   highpass.connect(noiseGain);
@@ -389,7 +389,7 @@ const finaleTheme: PresetFactory = (ctx, destination): PresetInstance => {
 
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(0.15, now + 3); // атака 3 с
+  gain.gain.linearRampToValueAtTime(0.5, now + 3); // атака 3 с
 
   osc1.connect(gain);
   osc2.connect(gain);
