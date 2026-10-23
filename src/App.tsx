@@ -5,6 +5,8 @@ import { CHARACTERS, SUSPECT_IDS } from './data/characters';
 import { NoteSpan } from './schemas/note';
 import { NoteCategory } from './data/truthTable';
 import { Icon } from './components/common/Icon';
+import { AudioControls } from './components/common/AudioControls';
+import { useAudioController } from './hooks/useAudioController';
 import './index.css';
 
 const CHAR_ICONS: Record<string, 'char_01' | 'char_02' | 'char_03' | 'char_04' | 'char_05' | 'char_06' | 'char_07' | 'detective' | 'victim'> = {
@@ -85,6 +87,9 @@ function MenuScreen() {
       <button className="menu__btn" onClick={continueGame} disabled={!saved}>
         Продолжить
       </button>
+      <div style={{ marginTop: '2rem' }}>
+        <AudioControls />
+      </div>
       <div className="menu__version">v0.1.0 • Глава 1</div>
     </div>
   );
@@ -541,6 +546,7 @@ function ChapterEndScreen() {
 
 export default function App() {
   const { screen, toast } = useGameStore();
+  useAudioController();
 
   return (
     <div className="app">

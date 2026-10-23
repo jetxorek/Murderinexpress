@@ -16,6 +16,8 @@ import {
   BookMarked,
   Skull,
   AlertTriangle,
+  Volume2,
+  VolumeX,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -36,7 +38,9 @@ export type IconName =
   | 'char_06'
   | 'char_07'
   | 'victim'
-  | 'warning';
+  | 'warning'
+  | 'volume-2'
+  | 'volume-x';
 
 const ICON_MAP: Record<IconName, LucideIcon> = {
   notebook: BookOpen,
@@ -56,6 +60,8 @@ const ICON_MAP: Record<IconName, LucideIcon> = {
   char_07: BookMarked,
   victim: Skull,
   warning: AlertTriangle,
+  'volume-2': Volume2,
+  'volume-x': VolumeX,
 };
 
 interface IconProps {
