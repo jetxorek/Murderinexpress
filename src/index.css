@@ -224,6 +224,11 @@ button {
   border-bottom-color: var(--success);
 }
 
+.note-highlight.added::after {
+  content: '✓ В блокноте';
+  color: var(--success);
+}
+
 .scene__actions {
   padding: 12px 20px;
   display: flex;
@@ -243,6 +248,39 @@ button {
 .scene__next-btn:hover {
   background: var(--brass);
   color: var(--bg-deep);
+}
+
+/* ─── TOOLTIP ─── */
+.note-highlight {
+  position: relative;
+}
+
+.note-highlight::after {
+  content: '📓 Занести в блокнот';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--brass);
+  color: var(--paper);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 50;
+  border-radius: 4px;
+}
+
+.note-highlight:hover::after {
+  opacity: 1;
+}
+
+.note-highlight.added::after {
+  content: '✓ В блокноте';
+  color: var(--success);
 }
 
 /* ─── CHOICES ─── */

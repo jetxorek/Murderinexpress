@@ -163,8 +163,8 @@ function SceneScreen() {
         <button className="bottom-btn" onClick={() => setScreen('notebook')}>
           📓 Блокнот {notes.length > 0 && <span className="bottom-btn__badge">{notes.length}</span>}
         </button>
-        <button className="bottom-btn" onClick={() => setScreen('accusation')}>
-          ⚖️ Обвинить
+        <button className="bottom-btn" onClick={() => setScreen('accusation')} style={{ background: 'rgba(184,147,90,0.2)', borderColor: 'var(--brass)' }}>
+          🔍 Указать на убийцу
         </button>
         <button className="bottom-btn" onClick={() => setScreen('menu')}>
           ☰ Меню
@@ -253,26 +253,36 @@ function AccusationScreen() {
   const label = getStrengthLabel();
 
   return (
-    <div className="accusation">
+    <div className="overlay">
       <div className="overlay__header">
         <span className="overlay__title">⚖️ Обвинение</span>
-        <button className="overlay__close" onClick={() => setScreen('scene')}>✕</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="overlay__close" onClick={() => setScreen('notebook')} title="Открыть блокнот">📓</button>
+          <button className="overlay__close" onClick={() => setScreen('scene')}>✕</button>
+        </div>
       </div>
       <div className="overlay__body" style={{ flex: 1 }}>
         <div className="accusation__section">
           <div className="accusation__section-title">Обвиняемые ({accusedIds.length}/7)</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {SUSPECT_IDS.map(id => {
               const ch = CHARACTERS[id];
               return (
                 <button
                   key={id}
-                  className={`char-bar__item ${accusedIds.includes(id) ? 'char-bar__item--accused' : ''}`}
+                  className={`note-card ${accusedIds.includes(id) ? 'note-card--selected' : ''}`}
                   onClick={() => toggleAccused(id)}
-                  style={{ minWidth: 70 }}
+                  style={{ textAlign: 'left' }}
                 >
-                  <div className="char-bar__avatar">{CHAR_EMOJIS[id]}</div>
-                  <div className="char-bar__name">{ch.name.split(' ')[0]}</div>
+                  <div className="note-card__header">
+                    <span style={{ fontSize: '1.2rem' }}>{CHAR_EMOJIS[id]}</span>
+                    <span style={{ fontSize: '0.9rem', color: 'var(--paper)', fontWeight: 'bold' }}>
+                      {ch.name}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--snow)', opacity: 0.7, marginTop: 4 }}>
+                    {ch.role}
+                  </div>
                 </button>
               );
             })}
@@ -415,21 +425,48 @@ function FinaleScreen() {
 }
 
 function ChapterEndScreen() {
-  const { setScreen, notes } = useGameStore();
+  const { setScreen, notes, advanceNode, currentSceneId } = useGameStore();
+  
+  const isChapter1End = currentSceneId === 'ch1_05_morning';
+  const isChapter2End = currentSceneId === 'ch2_05_police_announce';
+  
+  const handleContinue = () => {
+    if (isChapter1End) {
+      // Переход к главе 2
+      advanceNode('ch2_01_crime_scene');
+    } else if (isChapter2End) {
+      // Переход к обвинению
+      setScreen('accusation');
+    }
+  };
+  
   return (
     <div className="chapter-end">
       <SnowParticles />
-      <h2 className="chapter-end__title">Конец Главы 1</h2>
+      <h2 className="chapter-end__title">
+        {isChapter1End ? 'Конец Главы 1' : isChapter2End ? 'Конец Главы 2' : 'Конец главы'}
+      </h2>
       <p className="chapter-end__text">
-        Тело Степана Разумова найдено. Семь ножевых ранений. У всех наготове алиби.
-        <br /><br />
-        Пирогов поправил усы и посмотрел на снег за окном. Расследование только начинается.
+        {isChapter1End && (
+          <>
+            Тело Степана Разумова найдено. Семь ножевых ранений. У всех наготове алиби.
+            <br /><br />
+            Пирогов поправил усы и посмотрел на снег за окном. Расследование только начинается.
+          </>
+        )}
+        {isChapter2End && (
+          <>
+            Полиция прибудет через несколько часов. Время идёт.
+            <br /><br />
+            Пирогов собрал все улики, все противоречия, все психологические портреты. Пора называть имена.
+          </>
+        )}
       </p>
       <p style={{ fontSize: '0.8rem', color: 'var(--snow)', opacity: 0.5, marginBottom: '2rem' }}>
         Заметок собрано: {notes.length}
       </p>
-      <button className="menu__btn" onClick={() => setScreen('accusation')}>
-        Перейти к обвинению
+      <button className="menu__btn" onClick={handleContinue}>
+        {isChapter1End ? 'Продолжить расследование →' : 'Перейти к обвинению'}
       </button>
       <button className="menu__btn" onClick={() => setScreen('scene')} style={{ marginTop: 8 }}>
         Вернуться

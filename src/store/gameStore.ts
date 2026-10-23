@@ -146,6 +146,23 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   advanceNode: (nextNodeId?: string) => {
     const state = get();
+    
+    // Если передан ID сцены (не узла), переходим к ней
+    if (nextNodeId && nextNodeId.startsWith('ch')) {
+      const nextScene = getScene(nextNodeId);
+      if (nextScene) {
+        const newSlots = state.sceneSlotsLeft - (nextScene.slotCost ?? 1);
+        set({
+          currentSceneId: nextNodeId,
+          currentNodeId: nextScene.entry,
+          sceneSlotsLeft: Math.max(0, newSlots),
+          visitedScenes: [...state.visitedScenes, nextNodeId],
+          textRevealed: false,
+        });
+        return;
+      }
+    }
+    
     const scene = getScene(state.currentSceneId);
     if (!scene) return;
 
